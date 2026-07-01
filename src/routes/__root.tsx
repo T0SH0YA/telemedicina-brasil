@@ -87,11 +87,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "ReceitaJá — Teleprescrição Médica" },
+      {
+        name: "description",
+        content:
+          "Plataforma de teleprescrição médica: emita, assine digitalmente e envie prescrições ao paciente com segurança.",
+      },
+      { name: "author", content: "ReceitaJá" },
+      { property: "og:title", content: "ReceitaJá — Teleprescrição Médica" },
+      {
+        property: "og:description",
+        content: "Emita, assine e envie prescrições médicas de forma rápida e segura.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
