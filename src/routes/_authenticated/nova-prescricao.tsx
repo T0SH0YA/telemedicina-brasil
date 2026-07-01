@@ -216,7 +216,7 @@ function NovaPrescricao() {
                           {p.name}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {ageFromBirth(p.birthDate)} anos · {p.city}
+                          {ageLabel(p.birthDate)} · {p.city ?? "—"}
                         </span>
                       </span>
                     </button>
@@ -392,7 +392,7 @@ function NovaPrescricao() {
                 value={type === "controle_especial" ? "Controle especial" : "Receita simples"}
               />
               <SummaryRow label="Medicamentos" value={`${items.length}`} />
-              <SummaryRow label="Médico" value={doctor.name} />
+              <SummaryRow label="Médico" value={doctor.fullName} />
             </dl>
             <div className="mt-5 flex items-center gap-2 rounded-lg bg-muted/70 p-3 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
@@ -437,8 +437,10 @@ function NovaPrescricao() {
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <div className="text-sm">
-                  <p className="font-semibold text-foreground">{doctor.name}</p>
-                  <p className="text-xs text-muted-foreground">{doctor.crm} · Certificado A3</p>
+                  <p className="font-semibold text-foreground">{doctor.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {crmDisplay(doctor) || "Certificado"} · Certificado A3
+                  </p>
                 </div>
               </div>
               <label className="block">
