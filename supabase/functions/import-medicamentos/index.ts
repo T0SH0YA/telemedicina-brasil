@@ -1,27 +1,25 @@
-// Importa a base oficial de PREÇOS DE MEDICAMENTOS da CMED/ANVISA.
-// Esta base traz a coluna APRESENTAÇÃO com a concentração (mg/g/mL),
-// o princípio ativo (SUBSTÂNCIA), o nome comercial (PRODUTO), a tarja
-// e a classe terapêutica de todos os medicamentos comercializados no Brasil.
+// supabase/functions/import-medicamentos/index.ts
 //
-// O arquivo XLSX (ex.: "xls_conformidade_site_AAAAMMDD.xlsx") deve ser
-// baixado do portal da Anvisa (www.gov.br/anvisa/.../cmed/precos) e enviado
-// para o bucket privado "fontes-oficiais" com o nome definido em OBJECT.
-// A Anvisa tem cadeia de certificado incompleta e não pode ser baixada
-// diretamente pelo Deno, por isso lemos do armazenamento do Supabase.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+// Importa a base de medicamentos da CMED/ANVISA para a tabela "medicamentos".
+//
+// LEITURA EM STREAMING: o arquivo e um CSV (export da planilha CMED) lido
+// linha a linha, sem carregar tudo em memoria, para nao estourar o limite de
+// RAM da edge function (o arquivo grande estourava com WORKER_RESOURCE_LIMIT).
+//
+// O arquivo deve estar no bucket privado "fontes-oficiais" com o nome em OBJECT.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+}
 
-const BUCKET = "fontes-oficiais";
-const OBJECT = "anvisa/xls_conformidade_site_20260610_121627707.xlsx";
+const BUCKET = "fontes-oficiais"
+const OBJECT = "anvisa/xls_conformidade_site_20260610_121627707 - Planilha1.csv"
 
-// Índice das colunas na planilha da CMED (cabeçalho detectado em runtime).
+// Indices das colunas na base CMED (mesma ordem da planilha original).
 const COL = {
   substancia: 0,
   laboratorio: 2,
@@ -33,35 +31,35 @@ const COL = {
   tipo: 11,
   comercializacao: 71,
   tarja: 72,
-};
+}
 
 function mapTipo(t: string): "generico" | "similar" | "referencia" {
-  const c = (t || "").trim().toLowerCase();
-  if (c.includes("gen")) return "generico";
-  if (c.includes("similar")) return "similar";
-  return "referencia";
+  const c = (t || "").trim().toLowerCase()
+  if (c.includes("gen")) return "generico"
+  if (c.includes("similar")) return "similar"
+  return "referencia"
 }
 
 function isControlado(tarja: string): boolean {
-  const t = (tarja || "").toLowerCase();
-  return t.includes("preta") || t.includes("restri");
+  const t = (tarja || "").toLowerCase()
+  return t.includes("preta") || t.includes("restri")
 }
 
-// Converte a apresentação "crua" da CMED em algo legível na receita.
+// Converte a apresentacao "crua" da CMED em algo legivel na receita.
 // Ex.: "500 MG COM REV CT BL AL PLAS PVDC OPC X 20" -> "500 mg comprimido revestido"
-// Mantém a concentração e a forma farmacêutica; descarta a embalagem.
+// Mantem a concentracao e a forma farmaceutica; descarta a embalagem.
 const FORMAS: Array<[RegExp, string]> = [
   [/\bCOM\s+REV\b/, "comprimido revestido"],
   [/\bCOM\s+EFERV\b/, "comprimido efervescente"],
   [/\bCOM\b/, "comprimido"],
   [/\bCPR\b/, "comprimido"],
-  [/\bCAP\b/, "cápsula"],
-  [/\bDRG\b/, "drágea"],
-  [/\bSOL\s+INJ\b/, "solução injetável"],
-  [/\bSOL\s+OR\b/, "solução oral"],
-  [/\bSOL\b/, "solução"],
-  [/\bSUS\s+OR\b/, "suspensão oral"],
-  [/\bSUS\b/, "suspensão"],
+  [/\bCAP\b/, "capsula"],
+  [/\bDRG\b/, "dragea"],
+  [/\bSOL\s+INJ\b/, "solucao injetavel"],
+  [/\bSOL\s+OR\b/, "solucao oral"],
+  [/\bSOL\b/, "solucao"],
+  [/\bSUS\s+OR\b/, "suspensao oral"],
+  [/\bSUS\b/, "suspensao"],
   [/\bXPE\b/, "xarope"],
   [/\bGEL\b/, "gel"],
   [/\bPOM\b/, "pomada"],
@@ -69,142 +67,185 @@ const FORMAS: Array<[RegExp, string]> = [
   [/\bGTS?\b/, "gotas"],
   [/\bSPRAY\b/, "spray"],
   [/\bAER\b/, "aerossol"],
-  [/\bPO\b/, "pó"],
-];
+  [/\bPO\b/, "po"],
+]
 
 function limpaApresentacao(raw: string): string {
-  let up = (raw || "").toUpperCase().trim();
-  if (!up) return "";
-  up = up.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
-  // Concentração: números/"+"/"," iniciais seguidos de unidade (MG, G, MG/ML, %, UI...).
+  let up = (raw || "").toUpperCase().trim()
+  if (!up) return ""
+  up = up.replace(/[()]/g, " ").replace(/\s+/g, " ").trim()
+  // Concentracao: numeros/"+"/"," iniciais seguidos de unidade (MG, G, MG/ML, UI...).
   const concMatch = up.match(
-    /^([\d.,+\s]*[\d.,]+\s*(?:MG|G|MCG|UI|%|ML)(?:\s*\/\s*[\d.,]*\s*(?:MG|G|MCG|ML|DOSE|UI|H))?)/,
-  );
-  const conc = concMatch ? concMatch[1].replace(/\s+/g, " ").trim() : "";
-  // Forma farmacêutica: primeira que casar.
-  let forma = "";
+    /([\d.,+\s]*[\d.,]+\s*(?:MG|G|MCG|UI|ML)(?:\s*\/\s*[\d.,]*\s*(?:MG|G|MCG|ML|DOSE|UI|H))?)/,
+  )
+  const conc = concMatch ? concMatch[1].replace(/\s+/g, " ").trim() : ""
+  // Forma farmaceutica: primeira que casar.
+  let forma = ""
   for (const [re, nome] of FORMAS) {
-    if (re.test(up)) { forma = nome; break; }
+    if (re.test(up)) { forma = nome; break }
   }
-  const partes = [conc.toLowerCase(), forma].filter(Boolean);
-  // Fallback: se não achou nada, devolve os primeiros termos crus.
-  if (partes.length === 0) return up.split(/\s+/).slice(0, 4).join(" ").toLowerCase();
-  return partes.join(" ");
+  const partes = [conc.toLowerCase(), forma].filter(Boolean)
+  // Fallback: se nao achou nada, devolve os primeiros termos crus.
+  if (partes.length === 0) return up.split(/\s+/).slice(0, 4).join(" ").toLowerCase()
+  return partes.join(" ")
 }
 
 function limpaLab(v: string): string {
-  return (v || "").trim();
+  return (v || "").trim()
+}
+
+// Detecta o separador (";" ou ",") a partir de uma linha de cabecalho.
+function detectSep(headerLine: string): string {
+  const semi = (headerLine.match(/;/g) || []).length
+  const comma = (headerLine.match(/,/g) || []).length
+  return semi > comma ? ";" : ","
+}
+
+// Faz o parse de UMA linha CSV respeitando aspas duplas ("...", com "" escapado).
+function parseCsvLine(line: string, sep: string): string[] {
+  const out: string[] = []
+  let cur = ""
+  let inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ }
+        else inQ = false
+      } else cur += ch
+    } else {
+      if (ch === '"') inQ = true
+      else if (ch === sep) { out.push(cur); cur = "" }
+      else cur += ch
+    }
+  }
+  out.push(cur)
+  return out.map((c) => c.trim())
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
+  if (req.method === "OPTIONS") return new Response(null, { headers: CORS })
 
-  const started = Date.now();
+  const started = Date.now()
   try {
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    )
 
     const { data: file, error: dlErr } = await admin.storage
       .from(BUCKET)
-      .download(OBJECT);
+      .download(OBJECT)
     if (dlErr || !file) {
       throw new Error(
-        `Não foi possível ler a base da CMED (${BUCKET}/${OBJECT}): ${dlErr?.message ?? "arquivo ausente"}`,
-      );
+        `Nao foi possivel ler a base (${BUCKET}/${OBJECT}): ${dlErr?.message ?? "arquivo ausente"}`,
+      )
     }
 
-    const buf = new Uint8Array(await file.arrayBuffer());
-    const wb = XLSX.read(buf, { type: "array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json<string[]>(ws, {
-      header: 1,
-      defval: "",
-      raw: false,
-    });
+    // Le em streaming: decodifica por chunk e emite registros completos
+    // (respeitando aspas que possam conter quebras de linha internas).
+    const reader = (file.stream() as ReadableStream<Uint8Array>).getReader()
+    const decoder = new TextDecoder("utf-8")
 
-    // Detecta a linha de cabeçalho (com SUBSTÂNCIA e APRESENTAÇÃO preenchidos).
-    let hdrIdx = -1;
-    for (let i = 0; i < Math.min(aoa.length, 80); i++) {
-      const row = (aoa[i] || []).map((c) => String(c).toUpperCase());
-      const nonEmpty = row.filter((c) => c.trim() !== "").length;
-      if (nonEmpty > 40 && row.some((c) => c.includes("APRESENT")) && row.some((c) => c.includes("SUBST"))) {
-        hdrIdx = i;
-        break;
-      }
-    }
-    if (hdrIdx < 0) throw new Error("Cabeçalho da planilha CMED não encontrado.");
+    let sep = ","
+    let headerFound = false
+    let carry = ""
+    let inQ = false
 
-    const dataRows = aoa.slice(hdrIdx + 1);
+    let total = 0
+    let importados = 0
+    let ignorados = 0
+    const erros: string[] = []
+    let batch: Record<string, unknown>[] = []
 
-    const seen = new Set<string>();
-    const registros: Record<string, unknown>[] = [];
-    let ignorados = 0;
-
-    for (const r of dataRows) {
-      const produto = String(r[COL.produto] ?? "").trim();
-      const registro = String(r[COL.registro] ?? "").trim();
-      const comercializacao = String(r[COL.comercializacao] ?? "").trim().toLowerCase();
-
-      // Só medicamentos com nome e efetivamente comercializados.
-      if (!produto || comercializacao === "não" || comercializacao === "nao") {
-        ignorados++;
-        continue;
-      }
-
-      const key = `${registro}||${produto}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const tarjaRaw = String(r[COL.tarja] ?? "");
-      const tarja = tarjaRaw.replace(/^tarja/i, "").trim();
-
-      registros.push({
-        produto,
-        substancia: String(r[COL.substancia] ?? "").trim() || null,
-        apresentacao: limpaApresentacao(String(r[COL.apresentacao] ?? "")) || null,
-        laboratorio: limpaLab(String(r[COL.laboratorio] ?? "")) || null,
-        classe_terapeutica: String(r[COL.classe] ?? "").trim() || null,
-        tipo: mapTipo(String(r[COL.tipo] ?? "")),
-        tarja: tarja || null,
-        controlado: isControlado(tarjaRaw),
-        registro: registro || null,
-        situacao: "Comercializado",
-      });
-    }
-
-    let importados = 0;
-    const erros: string[] = [];
-    const BATCH = 500;
-    for (let i = 0; i < registros.length; i += BATCH) {
-      const slice = registros.slice(i, i + BATCH);
+    async function flush() {
+      if (batch.length === 0) return
       const { error } = await admin
         .from("medicamentos")
-        .upsert(slice, { onConflict: "registro,produto", ignoreDuplicates: false });
+        .upsert(batch, { onConflict: "registro,produto", ignoreDuplicates: false })
       if (error) {
-        erros.push(`Lote ${i / BATCH + 1}: ${error.message}`);
+        if (erros.length < 20) erros.push(error.message)
       } else {
-        importados += slice.length;
+        importados += batch.length
       }
+      batch = []
     }
 
+    // Processa uma linha logica (registro CSV ja completo).
+    async function handleRecord(recordText: string) {
+      if (!headerFound) {
+        // A primeira linha que contiver SUBST e APRESENTA e o cabecalho.
+        const upper = recordText.toUpperCase()
+        if (upper.includes("SUBST") && upper.includes("APRESENTA")) {
+          sep = detectSep(recordText)
+          headerFound = true
+        }
+        return
+      }
+      const cells = parseCsvLine(recordText, sep)
+      if (cells.length < 12) { ignorados++; return }
+      const produto = (cells[COL.produto] || "").trim()
+      const registro = (cells[COL.registro] || "").trim()
+      if (!produto) { ignorados++; return }
+      total++
+      const tarja = cells[COL.tarja] || ""
+      batch.push({
+        produto,
+        substancia: (cells[COL.substancia] || "").trim() || null,
+        apresentacao: limpaApresentacao(cells[COL.apresentacao] || "") || null,
+        laboratorio: limpaLab(cells[COL.laboratorio] || "") || null,
+        classe_terapeutica: (cells[COL.classe] || "").trim() || null,
+        tipo: mapTipo(cells[COL.tipo] || ""),
+        tarja: tarja.trim() || null,
+        controlado: isControlado(tarja),
+        registro: registro || null,
+        situacao: (cells[COL.comercializacao] || "").trim() || null,
+      })
+      if (batch.length >= 500) await flush()
+    }
+
+    // Le chunk a chunk; separa registros em quebras de linha que NAO estejam
+    // dentro de aspas. Assim campos com "\n" interno nao quebram o registro.
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      carry += decoder.decode(value, { stream: true })
+      let start = 0
+      for (let i = 0; i < carry.length; i++) {
+        const ch = carry[i]
+        if (ch === '"') inQ = !inQ
+        else if (ch === "\n" && !inQ) {
+          let rec = carry.slice(start, i)
+          if (rec.endsWith("\r")) rec = rec.slice(0, -1)
+          start = i + 1
+          if (rec.length > 0) await handleRecord(rec)
+        }
+      }
+      carry = carry.slice(start)
+    }
+    // Ultimo registro remanescente (sem quebra final).
+    carry += decoder.decode()
+    if (carry.trim().length > 0) await handleRecord(carry.replace(/\r$/, ""))
+    await flush()
+
+    const secs = ((Date.now() - started) / 1000).toFixed(1)
     return new Response(
       JSON.stringify({
-        ok: erros.length === 0,
-        fonte: "CMED/ANVISA — Lista de Preços de Medicamentos",
-        total_linhas: dataRows.length,
+        ok: true,
+        headerFound,
+        separador: sep,
+        totalLidos: total,
         importados,
         ignorados,
         erros,
-        duracao_ms: Date.now() - started,
+        segundos: secs,
       }),
       { headers: { ...CORS, "Content-Type": "application/json" } },
-    );
+    )
   } catch (e) {
     return new Response(
-      JSON.stringify({ ok: false, erro: (e as Error).message }),
+      JSON.stringify({ ok: false, error: String((e as Error)?.message ?? e) }),
       { status: 500, headers: { ...CORS, "Content-Type": "application/json" } },
-    );
+    )
   }
-});
+})
