@@ -13,8 +13,10 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as ValidarTokenRouteImport } from './routes/validar.$token'
 import { Route as AuthenticatedPacientesRouteImport } from './routes/_authenticated/pacientes'
 import { Route as AuthenticatedNovaPrescricaoRouteImport } from './routes/_authenticated/nova-prescricao'
+import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
 import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 
@@ -37,6 +39,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ValidarTokenRoute = ValidarTokenRouteImport.update({
+  id: '/validar/$token',
+  path: '/validar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPacientesRoute = AuthenticatedPacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
@@ -46,6 +53,12 @@ const AuthenticatedNovaPrescricaoRoute =
   AuthenticatedNovaPrescricaoRouteImport.update({
     id: '/nova-prescricao',
     path: '/nova-prescricao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIntegracoesRoute =
+  AuthenticatedIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedHistoricoRoute = AuthenticatedHistoricoRouteImport.update({
@@ -65,16 +78,20 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/nova-prescricao': typeof AuthenticatedNovaPrescricaoRoute
   '/pacientes': typeof AuthenticatedPacientesRoute
+  '/validar/$token': typeof ValidarTokenRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/nova-prescricao': typeof AuthenticatedNovaPrescricaoRoute
   '/pacientes': typeof AuthenticatedPacientesRoute
+  '/validar/$token': typeof ValidarTokenRoute
   '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
@@ -84,8 +101,10 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
+  '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
   '/_authenticated/nova-prescricao': typeof AuthenticatedNovaPrescricaoRoute
   '/_authenticated/pacientes': typeof AuthenticatedPacientesRoute
+  '/validar/$token': typeof ValidarTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
@@ -96,16 +115,20 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin'
     | '/historico'
+    | '/integracoes'
     | '/nova-prescricao'
     | '/pacientes'
+    | '/validar/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/sitemap.xml'
     | '/admin'
     | '/historico'
+    | '/integracoes'
     | '/nova-prescricao'
     | '/pacientes'
+    | '/validar/$token'
     | '/'
   id:
     | '__root__'
@@ -114,8 +137,10 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/historico'
+    | '/_authenticated/integracoes'
     | '/_authenticated/nova-prescricao'
     | '/_authenticated/pacientes'
+    | '/validar/$token'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
@@ -123,6 +148,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ValidarTokenRoute: typeof ValidarTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -155,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/validar/$token': {
+      id: '/validar/$token'
+      path: '/validar/$token'
+      fullPath: '/validar/$token'
+      preLoaderRoute: typeof ValidarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/pacientes': {
       id: '/_authenticated/pacientes'
       path: '/pacientes'
@@ -167,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/nova-prescricao'
       fullPath: '/nova-prescricao'
       preLoaderRoute: typeof AuthenticatedNovaPrescricaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/integracoes': {
+      id: '/_authenticated/integracoes'
+      path: '/integracoes'
+      fullPath: '/integracoes'
+      preLoaderRoute: typeof AuthenticatedIntegracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/historico': {
@@ -189,6 +229,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
+  AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
   AuthenticatedNovaPrescricaoRoute: typeof AuthenticatedNovaPrescricaoRoute
   AuthenticatedPacientesRoute: typeof AuthenticatedPacientesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -197,6 +238,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
+  AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
   AuthenticatedNovaPrescricaoRoute: AuthenticatedNovaPrescricaoRoute,
   AuthenticatedPacientesRoute: AuthenticatedPacientesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
@@ -209,6 +251,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ValidarTokenRoute: ValidarTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
