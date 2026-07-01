@@ -81,7 +81,8 @@ function NovaPrescricao() {
   const patientResults = useMemo(
     () =>
       patients.filter((p) =>
-        p.name.toLowerCase().includes(patientQuery.toLowerCase()) || p.cpf.includes(patientQuery),
+        p.name.toLowerCase().includes(patientQuery.toLowerCase()) ||
+        (p.cpf ?? "").includes(patientQuery),
       ),
     [patients, patientQuery],
   );
