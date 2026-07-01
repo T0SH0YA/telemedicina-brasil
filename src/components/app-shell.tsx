@@ -10,6 +10,7 @@ import {
   Plus,
   LogOut,
   DatabaseZap,
+  PlugZap,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const nav = [
   { to: "/historico", label: "Histórico", icon: ScrollText },
   { to: "/pacientes", label: "Pacientes", icon: Users },
   { to: "/admin", label: "Administração", icon: DatabaseZap },
+  { to: "/integracoes", label: "Integrações", icon: PlugZap },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
