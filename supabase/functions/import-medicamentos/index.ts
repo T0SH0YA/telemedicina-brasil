@@ -19,7 +19,7 @@ const CORS = {
 };
 
 const BUCKET = "fontes-oficiais";
-const OBJECT = "anvisa/cmed-precos.xlsx";
+const OBJECT = "anvisa/xls_conformidade_site_20260610_121627707.xlsx";
 
 // Índice das colunas na planilha da CMED (cabeçalho detectado em runtime).
 const COL = {
