@@ -14,6 +14,8 @@ interface NewPrescriptionInput {
   type: PrescriptionType;
   items: PrescriptionItem[];
   notes?: string;
+  cidCodigo?: string;
+  cidDescricao?: string;
 }
 
 interface RxStore {
