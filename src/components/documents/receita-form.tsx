@@ -1,14 +1,19 @@
-import { Trash2, AlertTriangle, Wand2, Infinity as InfinityIcon } from "lucide-react";
+import { useState } from "react";
+import { Trash2, AlertTriangle, Wand2, Infinity as InfinityIcon, BookmarkPlus, FolderOpen, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AsyncCombobox } from "@/components/async-combobox";
 import { searchMedicamentos, type MedResult } from "@/lib/reference";
 import { docMeta } from "@/lib/document-types";
-import {
-  suggestPosology,
-  formatPosology,
-  FREQUENCIA_OPCOES,
-  DURACAO_OPCOES,
-} from "@/lib/posology";
+import { suggestPosology, formatPosology, FREQUENCIA_OPCOES, DURACAO_OPCOES } from "@/lib/posology";
+import { useTemplates } from "@/lib/templates";
 import { CidField, NotesField, type DocFormProps } from "./form-shared";
 import type { PrescriptionItem } from "@/lib/types";
 
@@ -22,6 +27,9 @@ export function ReceitaForm({
   setNotes,
 }: DocFormProps) {
   const meta = docMeta(documentType);
+  const { templates, saveTemplate, saving } = useTemplates();
+  const [savingOpen, setSavingOpen] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState("");
 
   function addMedication(m: MedResult) {
     if (items.some((i) => i.medicationId === m.id)) return;
@@ -51,6 +59,32 @@ export function ReceitaForm({
     setItems((prev) => prev.filter((i) => i.medicationId !== id));
   }
 
+  function applyTemplate(templateItems: PrescriptionItem[]) {
+    setItems((prev) => {
+      const existing = new Set(prev.map((i) => i.medicationId));
+      const merged = [...prev];
+      for (const it of templateItems) {
+        if (!existing.has(it.medicationId)) merged.push(it);
+      }
+      return merged;
+    });
+    toast.success("Modelo aplicado.");
+  }
+
+  async function handleSaveTemplate() {
+    const title = templateTitle.trim();
+    if (!title) { toast.error("Dê um nome ao modelo."); return; }
+    if (items.length === 0) { toast.error("Adicione ao menos um medicamento."); return; }
+    try {
+      await saveTemplate({ title, items });
+      toast.success("Modelo salvo.");
+      setTemplateTitle("");
+      setSavingOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível salvar o modelo.");
+    }
+  }
+
   return (
     <div className="space-y-5">
       {meta.notice && (
@@ -58,6 +92,55 @@ export function ReceitaForm({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {meta.notice}
         </p>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="gap-1.5">
+              <FolderOpen className="h-4 w-4" /> Usar modelo
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
+            {templates.length === 0 ? (
+              <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                Nenhum modelo salvo ainda.
+              </div>
+            ) : (
+              templates.map((t) => (
+                <DropdownMenuItem key={t.id} onSelect={() => applyTemplate(t.items)} className="flex-col items-start gap-0.5">
+                  <span className="text-sm font-medium text-foreground">{t.title}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {t.items.length} {t.items.length === 1 ? "item" : "itens"}
+                  </span>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {savingOpen ? (
+          <div className="flex flex-1 items-center gap-2">
+            <Input
+              autoFocus
+              placeholder="Nome do modelo (ex.: Gripe adulto)"
+              value={templateTitle}
+              onChange={(e) => setTemplateTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveTemplate(); }}
+              className="h-8 max-w-xs"
+            />
+            <Button type="button" size="sm" onClick={handleSaveTemplate} disabled={saving} className="gap-1">
+              <Check className="h-4 w-4" /> Salvar
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setSavingOpen(false)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={() => setSavingOpen(true)} disabled={items.length === 0}>
+            <BookmarkPlus className="h-4 w-4" /> Salvar como modelo
+          </Button>
+        )}
+      </div>
 
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Medicamentos</span>
@@ -97,42 +180,24 @@ export function ReceitaForm({
                     <div className="flex items-center gap-2">
                       <p className="font-display text-sm font-semibold text-foreground">{item.name}</p>
                       {item.controlled && (
-                        <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                          Controlado
-                        </span>
+                        <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">Controlado</span>
                       )}
                     </div>
-                    {item.form && (
-                      <p className="truncate text-[11px] text-muted-foreground">{item.form}</p>
-                    )}
+                    {item.form && (<p className="truncate text-[11px] text-muted-foreground">{item.form}</p>)}
                   </div>
-                  <button
-                    onClick={() => removeItem(item.medicationId)}
-                    className="text-muted-foreground hover:text-destructive"
-                    aria-label="Remover"
-                  >
+                  <button onClick={() => removeItem(item.medicationId)} className="text-muted-foreground hover:text-destructive" aria-label="Remover">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
 
                 <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px]">
                   <label className="block">
-                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">
-                      Posologia
-                    </span>
-                    <Input
-                      value={item.posology}
-                      onChange={(e) => updateItem(item.medicationId, { posology: e.target.value })}
-                    />
+                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Posologia</span>
+                    <Input value={item.posology} onChange={(e) => updateItem(item.medicationId, { posology: e.target.value })} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">
-                      Quantidade
-                    </span>
-                    <Input
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.medicationId, { quantity: e.target.value })}
-                    />
+                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Quantidade</span>
+                    <Input value={item.quantity} onChange={(e) => updateItem(item.medicationId, { quantity: e.target.value })} />
                   </label>
                 </div>
 
@@ -141,16 +206,7 @@ export function ReceitaForm({
                     <Wand2 className="h-3 w-3" /> Frequência
                   </span>
                   {FREQUENCIA_OPCOES.slice(0, 5).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() =>
-                        updateItem(item.medicationId, {
-                          posology: applyFragment(item.posology, f, FREQUENCIA_OPCOES),
-                        })
-                      }
-                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent"
-                    >
+                    <button key={f} type="button" onClick={() => updateItem(item.medicationId, { posology: applyFragment(item.posology, f, FREQUENCIA_OPCOES) })} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent">
                       {f}
                     </button>
                   ))}
@@ -158,24 +214,11 @@ export function ReceitaForm({
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-medium uppercase text-muted-foreground">Duração</span>
                   {DURACAO_OPCOES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() =>
-                        updateItem(item.medicationId, {
-                          posology: applyFragment(item.posology, d, DURACAO_OPCOES),
-                        })
-                      }
-                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent"
-                    >
+                    <button key={d} type="button" onClick={() => updateItem(item.medicationId, { posology: applyFragment(item.posology, d, DURACAO_OPCOES) })} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent">
                       {d}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => updateItem(item.medicationId, { posology: toggleContinuo(item.posology) })}
-                    className="inline-flex items-center gap-1 rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10"
-                  >
+                  <button type="button" onClick={() => updateItem(item.medicationId, { posology: toggleContinuo(item.posology) })} className="inline-flex items-center gap-1 rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10">
                     <InfinityIcon className="h-3 w-3" /> Uso contínuo
                   </button>
                 </div>
@@ -193,12 +236,10 @@ export function ReceitaForm({
 
 /* --------------------------- helpers de posologia --------------------------- */
 
-// Opções contêm apenas letras, dígitos, espaço e "/". Escapamos só a barra.
 function escapeRegExp(s: string): string {
   return s.replace(new RegExp("/", "g"), "\\/");
 }
 
-// Aplica um fragmento (removendo opção anterior do mesmo grupo) e recompõe a posologia.
 function applyFragment(current: string, fragment: string, group: string[]): string {
   let base = (current || "").trim().replace(/\.+$/, "");
   for (const opt of group) {
