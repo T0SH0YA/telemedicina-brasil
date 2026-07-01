@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   User,
   Pill,
+  Stethoscope,
   FileSignature,
   Loader2,
   CheckCircle2,
@@ -27,9 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { DocumentDialog } from "@/components/document-dialog";
 import { SendDialog } from "@/components/send-dialog";
+import { AsyncCombobox } from "@/components/async-combobox";
+import {
+  searchMedicamentos,
+  searchCid,
+  type MedResult,
+  type CidResult,
+} from "@/lib/reference";
 import { cn } from "@/lib/utils";
 import {
-  medications,
   ageFromBirth,
   initials,
   doctor,
@@ -61,9 +68,9 @@ function NovaPrescricao() {
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [type, setType] = useState<PrescriptionType>("simples");
-  const [medQuery, setMedQuery] = useState("");
   const [items, setItems] = useState<PrescriptionItem[]>([]);
   const [notes, setNotes] = useState("");
+  const [cid, setCid] = useState<CidResult | null>(null);
 
   const [signOpen, setSignOpen] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -79,35 +86,26 @@ function NovaPrescricao() {
     [patients, patientQuery],
   );
 
-  const medResults = useMemo(() => {
-    const q = medQuery.toLowerCase();
-    return medications
-      .filter(
-        (m) =>
-          !items.some((i) => i.medicationId === m.id) &&
-          (m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)),
-      )
-      .slice(0, 6);
-  }, [medQuery, items]);
-
   const hasControlled = items.some((i) => i.controlled);
 
-  function addMedication(medId: string) {
-    const m = medications.find((x) => x.id === medId);
-    if (!m) return;
+  function addMedication(m: MedResult) {
+    if (items.some((i) => i.medicationId === m.id)) return;
+    const nome =
+      m.substancia && m.substancia.toLowerCase() !== m.produto.toLowerCase()
+        ? `${m.produto} (${m.substancia})`
+        : m.produto;
     setItems((prev) => [
       ...prev,
       {
         medicationId: m.id,
-        name: m.name,
-        form: m.form,
-        posology: m.defaultPosology,
+        name: nome,
+        form: [m.apresentacao, m.laboratorio].filter(Boolean).join(" · "),
+        posology: "",
         quantity: "1 caixa",
-        controlled: m.controlled,
+        controlled: m.controlado,
       },
     ]);
-    if (m.controlled) setType("controle_especial");
-    setMedQuery("");
+    if (m.controlado) setType("controle_especial");
   }
 
   function updateItem(id: string, patch: Partial<PrescriptionItem>) {
@@ -124,7 +122,14 @@ function NovaPrescricao() {
     if (!patient) return;
     setSigning(true);
     setTimeout(() => {
-      const rx = createPrescription({ patient, type, items, notes: notes.trim() || undefined });
+      const rx = createPrescription({
+        patient,
+        type,
+        items,
+        notes: notes.trim() || undefined,
+        cidCodigo: cid?.codigo,
+        cidDescricao: cid?.descricao,
+      });
       setSigning(false);
       setSignOpen(false);
       setIssued(rx);
@@ -135,6 +140,7 @@ function NovaPrescricao() {
       setItems([]);
       setNotes("");
       setType("simples");
+      setCid(null);
     }, 1400);
   }
 
@@ -251,40 +257,31 @@ function NovaPrescricao() {
 
           {/* 3. Medicamentos */}
           <Section step={3} icon={Pill} title="Medicamentos">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar medicamento..."
-                value={medQuery}
-                onChange={(e) => setMedQuery(e.target.value)}
-                className="pl-9"
-              />
-              {medQuery && medResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full space-y-1 rounded-xl border border-border bg-popover p-1 shadow-card">
-                  {medResults.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => addMedication(m.id)}
-                      className="flex w-full items-center justify-between gap-2 rounded-lg p-2 text-left transition-colors hover:bg-muted"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {m.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {m.form} · {m.category}
-                        </span>
-                      </span>
-                      {m.controlled && (
-                        <span className="shrink-0 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                          Controlado
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <AsyncCombobox<MedResult>
+              placeholder="Buscar por nome comercial ou princípio ativo (ex.: dipirona)..."
+              search={(q) => searchMedicamentos(q)}
+              onSelect={addMedication}
+              getKey={(m) => m.id}
+              emptyText="Nenhum medicamento encontrado na base ANVISA."
+              renderItem={(m) => (
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {m.produto}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[m.substancia, m.apresentacao, m.laboratorio].filter(Boolean).join(" · ") ||
+                        "—"}
+                    </span>
+                  </span>
+                  {m.controlado && (
+                    <span className="shrink-0 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
+                      Controlado
+                    </span>
+                  )}
+                </span>
               )}
-            </div>
+            />
 
             {items.length === 0 ? (
               <p className="mt-3 rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
@@ -339,8 +336,35 @@ function NovaPrescricao() {
             )}
           </Section>
 
-          {/* 4. Observações */}
-          <Section step={4} icon={Plus} title="Observações (opcional)">
+          {/* 4. Hipótese diagnóstica (CID) */}
+          <Section step={4} icon={Stethoscope} title="Hipótese diagnóstica (CID-10)">
+            {cid ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-accent/50 p-3">
+                <p className="min-w-0 truncate text-sm font-semibold text-foreground">
+                  <span className="font-mono">{cid.codigo}</span> — {cid.descricao}
+                </p>
+                <Button variant="ghost" size="sm" onClick={() => setCid(null)}>
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <AsyncCombobox<CidResult>
+                placeholder="Buscar por código ou descrição (ex.: J11 ou gripe)..."
+                search={(q) => searchCid(q)}
+                onSelect={setCid}
+                getKey={(c) => c.codigo}
+                emptyText="Nenhum CID encontrado."
+                renderItem={(c) => (
+                  <span className="block min-w-0 truncate text-sm font-medium text-foreground">
+                    <span className="font-mono">{c.codigo}</span> — {c.descricao}
+                  </span>
+                )}
+              />
+            )}
+          </Section>
+
+          {/* 5. Observações */}
+          <Section step={5} icon={Plus} title="Observações (opcional)">
             <Textarea
               placeholder="Orientações ao paciente, retorno, etc."
               value={notes}

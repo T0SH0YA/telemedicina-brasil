@@ -8,6 +8,7 @@ import {
   Menu,
   Plus,
   Bell,
+  DatabaseZap,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const nav = [
   { to: "/nova-prescricao", label: "Nova prescrição", icon: FilePlus2 },
   { to: "/historico", label: "Histórico", icon: ScrollText },
   { to: "/pacientes", label: "Pacientes", icon: Users },
+  { to: "/admin", label: "Administração", icon: DatabaseZap },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

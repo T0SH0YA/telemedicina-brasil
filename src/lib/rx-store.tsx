@@ -14,6 +14,8 @@ interface NewPrescriptionInput {
   type: PrescriptionType;
   items: PrescriptionItem[];
   notes?: string;
+  cidCodigo?: string;
+  cidDescricao?: string;
 }
 
 interface RxStore {
@@ -43,6 +45,8 @@ export function RxProvider({ children }: { children: ReactNode }) {
           type: input.type,
           items: input.items,
           notes: input.notes,
+          cidCodigo: input.cidCodigo,
+          cidDescricao: input.cidDescricao,
           createdAt: new Date().toISOString(),
           status: "emitida",
         };
