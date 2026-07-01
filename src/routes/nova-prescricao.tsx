@@ -68,9 +68,9 @@ function NovaPrescricao() {
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [type, setType] = useState<PrescriptionType>("simples");
-  const [medQuery, setMedQuery] = useState("");
   const [items, setItems] = useState<PrescriptionItem[]>([]);
   const [notes, setNotes] = useState("");
+  const [cid, setCid] = useState<CidResult | null>(null);
 
   const [signOpen, setSignOpen] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -86,35 +86,26 @@ function NovaPrescricao() {
     [patients, patientQuery],
   );
 
-  const medResults = useMemo(() => {
-    const q = medQuery.toLowerCase();
-    return medications
-      .filter(
-        (m) =>
-          !items.some((i) => i.medicationId === m.id) &&
-          (m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)),
-      )
-      .slice(0, 6);
-  }, [medQuery, items]);
-
   const hasControlled = items.some((i) => i.controlled);
 
-  function addMedication(medId: string) {
-    const m = medications.find((x) => x.id === medId);
-    if (!m) return;
+  function addMedication(m: MedResult) {
+    if (items.some((i) => i.medicationId === m.id)) return;
+    const nome =
+      m.substancia && m.substancia.toLowerCase() !== m.produto.toLowerCase()
+        ? `${m.produto} (${m.substancia})`
+        : m.produto;
     setItems((prev) => [
       ...prev,
       {
         medicationId: m.id,
-        name: m.name,
-        form: m.form,
-        posology: m.defaultPosology,
+        name: nome,
+        form: [m.apresentacao, m.laboratorio].filter(Boolean).join(" · "),
+        posology: "",
         quantity: "1 caixa",
-        controlled: m.controlled,
+        controlled: m.controlado,
       },
     ]);
-    if (m.controlled) setType("controle_especial");
-    setMedQuery("");
+    if (m.controlado) setType("controle_especial");
   }
 
   function updateItem(id: string, patch: Partial<PrescriptionItem>) {
