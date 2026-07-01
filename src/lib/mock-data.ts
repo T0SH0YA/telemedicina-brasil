@@ -45,6 +45,8 @@ export interface Prescription {
   type: PrescriptionType;
   items: PrescriptionItem[];
   notes?: string;
+  cidCodigo?: string;
+  cidDescricao?: string;
   createdAt: string; // ISO
   status: PrescriptionStatus;
   sentTo?: string; // canal de envio
