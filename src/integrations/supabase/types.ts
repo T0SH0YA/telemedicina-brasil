@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      cid10: {
+        Row: {
+          busca: unknown
+          capitulo: number | null
+          capitulo_descricao: string | null
+          categoria: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          descricao_abrev: string | null
+          nivel: string
+        }
+        Insert: {
+          busca?: unknown
+          capitulo?: number | null
+          capitulo_descricao?: string | null
+          categoria?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          descricao_abrev?: string | null
+          nivel?: string
+        }
+        Update: {
+          busca?: unknown
+          capitulo?: number | null
+          capitulo_descricao?: string | null
+          categoria?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          descricao_abrev?: string | null
+          nivel?: string
+        }
+        Relationships: []
+      }
       doctor_profiles: {
         Row: {
           clinic_address: string | null
@@ -56,39 +92,51 @@ export type Database = {
         }
         Relationships: []
       }
-      medications: {
+      medicamentos: {
         Row: {
-          active_ingredient: string | null
-          brand_name: string
-          category: string | null
-          controlled: boolean
+          apresentacao: string | null
+          categoria_regulatoria: string | null
+          classe_terapeutica: string | null
+          controlado: boolean
           created_at: string
-          default_posology: string | null
-          drug_kind: Database["public"]["Enums"]["drug_kind"] | null
           id: string
-          presentation: string | null
+          laboratorio: string | null
+          produto: string
+          registro: string | null
+          situacao: string | null
+          substancia: string | null
+          tarja: string | null
+          tipo: Database["public"]["Enums"]["drug_kind"] | null
         }
         Insert: {
-          active_ingredient?: string | null
-          brand_name: string
-          category?: string | null
-          controlled?: boolean
+          apresentacao?: string | null
+          categoria_regulatoria?: string | null
+          classe_terapeutica?: string | null
+          controlado?: boolean
           created_at?: string
-          default_posology?: string | null
-          drug_kind?: Database["public"]["Enums"]["drug_kind"] | null
           id?: string
-          presentation?: string | null
+          laboratorio?: string | null
+          produto: string
+          registro?: string | null
+          situacao?: string | null
+          substancia?: string | null
+          tarja?: string | null
+          tipo?: Database["public"]["Enums"]["drug_kind"] | null
         }
         Update: {
-          active_ingredient?: string | null
-          brand_name?: string
-          category?: string | null
-          controlled?: boolean
+          apresentacao?: string | null
+          categoria_regulatoria?: string | null
+          classe_terapeutica?: string | null
+          controlado?: boolean
           created_at?: string
-          default_posology?: string | null
-          drug_kind?: Database["public"]["Enums"]["drug_kind"] | null
           id?: string
-          presentation?: string | null
+          laboratorio?: string | null
+          produto?: string
+          registro?: string | null
+          situacao?: string | null
+          substancia?: string | null
+          tarja?: string | null
+          tipo?: Database["public"]["Enums"]["drug_kind"] | null
         }
         Relationships: []
       }
@@ -150,7 +198,7 @@ export type Database = {
           created_at: string
           dosage: string | null
           id: string
-          medication_id: string | null
+          medicamento_id: string | null
           name: string
           owner_id: string
           posology: string | null
@@ -164,7 +212,7 @@ export type Database = {
           created_at?: string
           dosage?: string | null
           id?: string
-          medication_id?: string | null
+          medicamento_id?: string | null
           name: string
           owner_id?: string
           posology?: string | null
@@ -178,7 +226,7 @@ export type Database = {
           created_at?: string
           dosage?: string | null
           id?: string
-          medication_id?: string | null
+          medicamento_id?: string | null
           name?: string
           owner_id?: string
           posology?: string | null
@@ -188,10 +236,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "prescription_items_medication_id_fkey"
-            columns: ["medication_id"]
+            foreignKeyName: "prescription_items_medicamento_id_fkey"
+            columns: ["medicamento_id"]
             isOneToOne: false
-            referencedRelation: "medications"
+            referencedRelation: "medicamentos"
             referencedColumns: ["id"]
           },
           {
@@ -238,6 +286,8 @@ export type Database = {
       }
       prescriptions: {
         Row: {
+          cid_codigo: string | null
+          cid_descricao: string | null
           clinic_location: string | null
           created_at: string
           doc_type: Database["public"]["Enums"]["prescription_doc_type"]
@@ -253,6 +303,8 @@ export type Database = {
           validation_token: string
         }
         Insert: {
+          cid_codigo?: string | null
+          cid_descricao?: string | null
           clinic_location?: string | null
           created_at?: string
           doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
@@ -268,6 +320,8 @@ export type Database = {
           validation_token: string
         }
         Update: {
+          cid_codigo?: string | null
+          cid_descricao?: string | null
           clinic_location?: string | null
           created_at?: string
           doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
@@ -297,7 +351,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       drug_kind: "generico" | "similar" | "referencia"
