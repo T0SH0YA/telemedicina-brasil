@@ -68,6 +68,18 @@ export function PrescriptionDocument({ rx }: { rx: Prescription }) {
         </p>
       )}
 
+      {rx.cidCodigo && (
+        <p className="mt-3 text-sm">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Hipótese diagnóstica (CID-10):{" "}
+          </span>
+          <span className="font-medium text-foreground">
+            {rx.cidCodigo}
+            {rx.cidDescricao ? ` — ${rx.cidDescricao}` : ""}
+          </span>
+        </p>
+      )}
+
       {/* Itens */}
       <ol className="mt-5 space-y-3">
         {rx.items.map((item, i) => (
