@@ -1,7 +1,6 @@
 // Importa a base oficial do CID-10 (DATASUS v2008) a partir do espelho em CSV no GitHub.
 // Categorias (3 dígitos) + Subcategorias (4 dígitos) + Capítulos.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { parse } from "https://deno.land/std@0.224.0/csv/parse.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -13,12 +12,18 @@ const CORS = {
 const BASE =
   "https://raw.githubusercontent.com/SidneyBissoli/cid10-br-mcp/master/data/";
 
+// Os CSVs do DATASUS não são quotados e cada linha é um registro completo
+// (sem ";" nem quebras de linha dentro dos campos), então um split simples é
+// mais robusto que um parser CSV que interpreta aspas soltas.
 async function baixar(nome: string): Promise<string[][]> {
   const r = await fetch(BASE + nome, { headers: { "User-Agent": "ReceitaJa/1.0" } });
   if (!r.ok) throw new Error(`Falha ao baixar ${nome}: HTTP ${r.status}`);
   const buf = await r.arrayBuffer();
   const text = new TextDecoder("iso-8859-1").decode(buf);
-  return parse(text, { separator: ";", lazyQuotes: true }) as string[][];
+  return text
+    .split(/\r?\n/)
+    .filter((l) => l.length > 0)
+    .map((l) => l.split(";"));
 }
 
 Deno.serve(async (req) => {
