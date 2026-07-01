@@ -13,6 +13,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as NovaPrescricaoRouteImport } from './routes/nova-prescricao'
 import { Route as HistoricoRouteImport } from './routes/historico'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -35,6 +36,11 @@ const HistoricoRoute = HistoricoRouteImport.update({
   path: '/historico',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
@@ -67,15 +76,23 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/historico'
     | '/nova-prescricao'
     | '/pacientes'
     | '/sitemap.xml'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/historico' | '/nova-prescricao' | '/pacientes' | '/sitemap.xml'
+  to:
+    | '/'
+    | '/admin'
+    | '/historico'
+    | '/nova-prescricao'
+    | '/pacientes'
+    | '/sitemap.xml'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/historico'
     | '/nova-prescricao'
     | '/pacientes'
@@ -84,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   HistoricoRoute: typeof HistoricoRoute
   NovaPrescricaoRoute: typeof NovaPrescricaoRoute
   PacientesRoute: typeof PacientesRoute
@@ -120,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoricoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -132,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   HistoricoRoute: HistoricoRoute,
   NovaPrescricaoRoute: NovaPrescricaoRoute,
   PacientesRoute: PacientesRoute,
