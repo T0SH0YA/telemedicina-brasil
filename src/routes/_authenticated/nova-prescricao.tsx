@@ -172,7 +172,8 @@ function NovaPrescricao() {
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-foreground">{patient.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {ageFromBirth(patient.birthDate)} anos · CPF {patient.cpf}
+                      {ageLabel(patient.birthDate)}
+                      {patient.cpf ? ` · CPF ${patient.cpf}` : ""}
                       {patient.allergies.length > 0 && (
                         <span className="ml-1 text-destructive">
                           · Alergias: {patient.allergies.join(", ")}
