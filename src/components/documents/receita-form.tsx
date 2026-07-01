@@ -1,8 +1,14 @@
-import { Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle, Wand2, Infinity as InfinityIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/async-combobox";
 import { searchMedicamentos, type MedResult } from "@/lib/reference";
 import { docMeta } from "@/lib/document-types";
+import {
+  suggestPosology,
+  formatPosology,
+  FREQUENCIA_OPCOES,
+  DURACAO_OPCOES,
+} from "@/lib/posology";
 import { CidField, NotesField, type DocFormProps } from "./form-shared";
 import type { PrescriptionItem } from "@/lib/types";
 
@@ -21,16 +27,17 @@ export function ReceitaForm({
     if (items.some((i) => i.medicationId === m.id)) return;
     const nome =
       m.substancia && m.substancia.toLowerCase() !== m.produto.toLowerCase()
-        ? `${m.produto} (${m.substancia})`
+        ? m.produto + " (" + m.substancia + ")"
         : m.produto;
+    const sug = suggestPosology(m);
     setItems((prev) => [
       ...prev,
       {
         medicationId: m.id,
         name: nome,
         form: [m.apresentacao, m.laboratorio].filter(Boolean).join(" · "),
-        posology: "",
-        quantity: "1 caixa",
+        posology: formatPosology(sug),
+        quantity: sug.quantidade,
         controlled: m.controlado,
       },
     ]);
@@ -86,12 +93,17 @@ export function ReceitaForm({
             {items.map((item) => (
               <li key={item.medicationId} className="rounded-xl border border-border p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <p className="font-display text-sm font-semibold text-foreground">{item.name}</p>
-                    {item.controlled && (
-                      <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                        Controlado
-                      </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-display text-sm font-semibold text-foreground">{item.name}</p>
+                      {item.controlled && (
+                        <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
+                          Controlado
+                        </span>
+                      )}
+                    </div>
+                    {item.form && (
+                      <p className="truncate text-[11px] text-muted-foreground">{item.form}</p>
                     )}
                   </div>
                   <button
@@ -102,6 +114,7 @@ export function ReceitaForm({
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+
                 <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px]">
                   <label className="block">
                     <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">
@@ -122,6 +135,50 @@ export function ReceitaForm({
                     />
                   </label>
                 </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
+                    <Wand2 className="h-3 w-3" /> Frequência
+                  </span>
+                  {FREQUENCIA_OPCOES.slice(0, 5).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() =>
+                        updateItem(item.medicationId, {
+                          posology: applyFragment(item.posology, f, FREQUENCIA_OPCOES),
+                        })
+                      }
+                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent"
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-medium uppercase text-muted-foreground">Duração</span>
+                  {DURACAO_OPCOES.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() =>
+                        updateItem(item.medicationId, {
+                          posology: applyFragment(item.posology, d, DURACAO_OPCOES),
+                        })
+                      }
+                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent"
+                    >
+                      {d}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => updateItem(item.medicationId, { posology: toggleContinuo(item.posology) })}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10"
+                  >
+                    <InfinityIcon className="h-3 w-3" /> Uso contínuo
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -132,4 +189,32 @@ export function ReceitaForm({
       <NotesField value={notes} onChange={setNotes} />
     </div>
   );
+}
+
+/* --------------------------- helpers de posologia --------------------------- */
+
+// Opções contêm apenas letras, dígitos, espaço e "/". Escapamos só a barra.
+function escapeRegExp(s: string): string {
+  return s.replace(new RegExp("/", "g"), "\\/");
+}
+
+// Aplica um fragmento (removendo opção anterior do mesmo grupo) e recompõe a posologia.
+function applyFragment(current: string, fragment: string, group: string[]): string {
+  let base = (current || "").trim().replace(/\.+$/, "");
+  for (const opt of group) {
+    base = base.replace(new RegExp("\\s*" + escapeRegExp(opt), "gi"), "");
+  }
+  base = base.replace(/\s*—?\s*uso contínuo/gi, "").trim();
+  base = (base + " " + fragment).replace(/\s+/g, " ").trim();
+  return base + ".";
+}
+
+function toggleContinuo(current: string): string {
+  let base = (current || "").trim().replace(/\.+$/, "");
+  if (/uso contínuo/i.test(base)) {
+    base = base.replace(/\s*—?\s*uso contínuo/gi, "").trim();
+    return base + ".";
+  }
+  base = base.replace(/\s*por\s+\d+\s*dias?/gi, "").trim();
+  return (base + " — uso contínuo").replace(/\s+/g, " ").trim() + ".";
 }
