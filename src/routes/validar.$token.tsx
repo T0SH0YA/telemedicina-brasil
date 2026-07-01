@@ -52,7 +52,7 @@ function ValidarPage() {
   });
 
   const docLabel = data?.document_type
-    ? docMeta(data.document_type as DocumentType)?.label ?? data.document_type
+    ? docMeta(data.document_type as DocumentType)?.short ?? data.document_type
     : "Documento médico";
 
   return (
