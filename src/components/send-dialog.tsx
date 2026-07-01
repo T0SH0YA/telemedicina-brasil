@@ -12,7 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRx } from "@/lib/data";
-import type { Prescription } from "@/lib/types";
+import { docMeta } from "@/lib/document-types";
+import { buildDeeplink } from "@/lib/whatsapp";
+import type { DocumentType, Prescription } from "@/lib/types";
 
 const channels = [
   { id: "WhatsApp", label: "WhatsApp", icon: MessageCircle, hint: "Envia o link seguro por mensagem" },
@@ -34,12 +36,28 @@ export function SendDialog({
   const [sent, setSent] = useState(false);
 
   if (!rx) return null;
-  const link = `https://receitaja.exemplo.com/validar/${rx.code}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const link = origin + "/validar/" + rx.code;
+  const docLabel = docMeta(rx.documentType as DocumentType)?.label ?? "Documento";
 
   const handleSend = () => {
+    if (selected === "WhatsApp") {
+      const phone = rx.patient?.phone ?? "";
+      const url = buildDeeplink({
+        phone,
+        patientName: rx.patientName,
+        documentLabel: docLabel,
+        link,
+      });
+      window.open(url, "_blank", "noopener");
+    }
     markSent(rx.id, selected);
     setSent(true);
-    toast.success(`Prescrição enviada por ${selected} (simulado)`);
+    if (selected === "WhatsApp") {
+      toast.success("WhatsApp aberto com a mensagem pronta");
+    } else {
+      toast.success("Prescrição enviada por " + selected);
+    }
   };
 
   const handleClose = (v: boolean) => {
