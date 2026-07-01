@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useRx } from "@/lib/rx-store";
-import type { Prescription } from "@/lib/mock-data";
+import { useRx } from "@/lib/data";
+import type { Prescription } from "@/lib/types";
 
 const channels = [
   { id: "WhatsApp", label: "WhatsApp", icon: MessageCircle, hint: "Envia o link seguro por mensagem" },

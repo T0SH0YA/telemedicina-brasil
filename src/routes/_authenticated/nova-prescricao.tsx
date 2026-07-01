@@ -15,7 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRx } from "@/lib/rx-store";
+import { useRx } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,17 +36,16 @@ import {
   type CidResult,
 } from "@/lib/reference";
 import { cn } from "@/lib/utils";
-import {
-  ageFromBirth,
-  initials,
-  doctor,
-  type Patient,
-  type PrescriptionItem,
-  type PrescriptionType,
-  type Prescription,
-} from "@/lib/mock-data";
+import { ageLabel, crmDisplay, initials } from "@/lib/format";
+import { useDoctor } from "@/lib/doctor-context";
+import type {
+  Patient,
+  PrescriptionItem,
+  PrescriptionType,
+  Prescription,
+} from "@/lib/types";
 
-export const Route = createFileRoute("/nova-prescricao")({
+export const Route = createFileRoute("/_authenticated/nova-prescricao")({
   validateSearch: (search: Record<string, unknown>): { paciente?: string } => ({
     paciente: typeof search.paciente === "string" ? search.paciente : undefined,
   }),
@@ -62,6 +61,7 @@ export const Route = createFileRoute("/nova-prescricao")({
 function NovaPrescricao() {
   const { paciente } = Route.useSearch();
   const { patients, createPrescription } = useRx();
+  const doctor = useDoctor();
 
   const [patient, setPatient] = useState<Patient | null>(
     () => patients.find((p) => p.id === paciente) ?? null,
@@ -81,7 +81,8 @@ function NovaPrescricao() {
   const patientResults = useMemo(
     () =>
       patients.filter((p) =>
-        p.name.toLowerCase().includes(patientQuery.toLowerCase()) || p.cpf.includes(patientQuery),
+        p.name.toLowerCase().includes(patientQuery.toLowerCase()) ||
+        (p.cpf ?? "").includes(patientQuery),
       ),
     [patients, patientQuery],
   );
@@ -121,26 +122,31 @@ function NovaPrescricao() {
   function confirmSignature() {
     if (!patient) return;
     setSigning(true);
-    setTimeout(() => {
-      const rx = createPrescription({
-        patient,
-        type,
-        items,
-        notes: notes.trim() || undefined,
-        cidCodigo: cid?.codigo,
-        cidDescricao: cid?.descricao,
-      });
-      setSigning(false);
-      setSignOpen(false);
-      setIssued(rx);
-      setViewIssued(true);
-      toast.success("Prescrição assinada e emitida com sucesso");
-      // reset
-      setPatient(null);
-      setItems([]);
-      setNotes("");
-      setType("simples");
-      setCid(null);
+    setTimeout(async () => {
+      try {
+        const rx = await createPrescription({
+          patient,
+          type,
+          items,
+          notes: notes.trim() || undefined,
+          cidCodigo: cid?.codigo,
+          cidDescricao: cid?.descricao,
+        });
+        setSignOpen(false);
+        setIssued(rx);
+        setViewIssued(true);
+        toast.success("Prescrição assinada e emitida com sucesso");
+        // reset
+        setPatient(null);
+        setItems([]);
+        setNotes("");
+        setType("simples");
+        setCid(null);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Falha ao emitir a prescrição.");
+      } finally {
+        setSigning(false);
+      }
     }, 1400);
   }
 
@@ -166,7 +172,8 @@ function NovaPrescricao() {
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-foreground">{patient.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {ageFromBirth(patient.birthDate)} anos · CPF {patient.cpf}
+                      {ageLabel(patient.birthDate)}
+                      {patient.cpf ? ` · CPF ${patient.cpf}` : ""}
                       {patient.allergies.length > 0 && (
                         <span className="ml-1 text-destructive">
                           · Alergias: {patient.allergies.join(", ")}
@@ -209,7 +216,7 @@ function NovaPrescricao() {
                           {p.name}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {ageFromBirth(p.birthDate)} anos · {p.city}
+                          {ageLabel(p.birthDate)} · {p.city ?? "—"}
                         </span>
                       </span>
                     </button>
@@ -385,7 +392,7 @@ function NovaPrescricao() {
                 value={type === "controle_especial" ? "Controle especial" : "Receita simples"}
               />
               <SummaryRow label="Medicamentos" value={`${items.length}`} />
-              <SummaryRow label="Médico" value={doctor.name} />
+              <SummaryRow label="Médico" value={doctor.fullName} />
             </dl>
             <div className="mt-5 flex items-center gap-2 rounded-lg bg-muted/70 p-3 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
@@ -430,8 +437,10 @@ function NovaPrescricao() {
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <div className="text-sm">
-                  <p className="font-semibold text-foreground">{doctor.name}</p>
-                  <p className="text-xs text-muted-foreground">{doctor.crm} · Certificado A3</p>
+                  <p className="font-semibold text-foreground">{doctor.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {crmDisplay(doctor) || "Certificado"} · Certificado A3
+                  </p>
                 </div>
               </div>
               <label className="block">

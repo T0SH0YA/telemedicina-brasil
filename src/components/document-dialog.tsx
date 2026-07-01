@@ -2,7 +2,7 @@ import { Download, Send } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PrescriptionDocument } from "@/components/prescription-document";
-import type { Prescription } from "@/lib/mock-data";
+import type { Prescription } from "@/lib/types";
 
 export function DocumentDialog({
   rx,

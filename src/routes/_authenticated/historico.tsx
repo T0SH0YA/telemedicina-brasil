@@ -2,16 +2,17 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, Eye, Send, Ban, FilePlus2, Filter } from "lucide-react";
 import { toast } from "sonner";
-import { useRx } from "@/lib/rx-store";
+import { useRx } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, TypeBadge } from "@/components/status-badge";
 import { DocumentDialog } from "@/components/document-dialog";
 import { SendDialog } from "@/components/send-dialog";
 import { cn } from "@/lib/utils";
-import { formatDateTime, initials, type Prescription, type PrescriptionStatus } from "@/lib/mock-data";
+import { formatDateTime, initials } from "@/lib/format";
+import type { Prescription, PrescriptionStatus } from "@/lib/types";
 
-export const Route = createFileRoute("/historico")({
+export const Route = createFileRoute("/_authenticated/historico")({
   head: () => ({
     meta: [
       { title: "Histórico de prescrições — ReceitaJá" },
