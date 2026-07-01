@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   FilePlus2,
@@ -7,13 +8,15 @@ import {
   Users,
   Menu,
   Plus,
-  Bell,
+  LogOut,
   DatabaseZap,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { doctor, initials } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import { useDoctor } from "@/lib/doctor-context";
+import { crmDisplay, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -53,15 +56,38 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function DoctorCard() {
+  const doctor = useDoctor();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  async function handleSignOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-foreground">
-        {initials(doctor.name)}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-sidebar-foreground">{doctor.name}</p>
-        <p className="truncate text-xs text-muted-foreground">{doctor.crm}</p>
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-foreground">
+          {initials(doctor.fullName)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-sidebar-foreground">{doctor.fullName}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {crmDisplay(doctor) || doctor.specialty || "Médico(a)"}
+          </p>
+        </div>
       </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleSignOut}
+        className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent"
+      >
+        <LogOut className="h-4 w-4" /> Sair
+      </Button>
     </div>
   );
 }
@@ -109,10 +135,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground" aria-label="Notificações">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
-            </Button>
             <Button asChild className="hidden sm:inline-flex">
               <Link to="/nova-prescricao">
                 <Plus className="h-4 w-4" /> Nova prescrição
