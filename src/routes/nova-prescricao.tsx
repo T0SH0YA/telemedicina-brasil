@@ -249,40 +249,31 @@ function NovaPrescricao() {
 
           {/* 3. Medicamentos */}
           <Section step={3} icon={Pill} title="Medicamentos">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar medicamento..."
-                value={medQuery}
-                onChange={(e) => setMedQuery(e.target.value)}
-                className="pl-9"
-              />
-              {medQuery && medResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full space-y-1 rounded-xl border border-border bg-popover p-1 shadow-card">
-                  {medResults.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => addMedication(m.id)}
-                      className="flex w-full items-center justify-between gap-2 rounded-lg p-2 text-left transition-colors hover:bg-muted"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {m.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {m.form} · {m.category}
-                        </span>
-                      </span>
-                      {m.controlled && (
-                        <span className="shrink-0 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                          Controlado
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <AsyncCombobox<MedResult>
+              placeholder="Buscar por nome comercial ou princípio ativo (ex.: dipirona)..."
+              search={(q) => searchMedicamentos(q)}
+              onSelect={addMedication}
+              getKey={(m) => m.id}
+              emptyText="Nenhum medicamento encontrado na base ANVISA."
+              renderItem={(m) => (
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {m.produto}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[m.substancia, m.apresentacao, m.laboratorio].filter(Boolean).join(" · ") ||
+                        "—"}
+                    </span>
+                  </span>
+                  {m.controlado && (
+                    <span className="shrink-0 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
+                      Controlado
+                    </span>
+                  )}
+                </span>
               )}
-            </div>
+            />
 
             {items.length === 0 ? (
               <p className="mt-3 rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
