@@ -11,7 +11,7 @@ import { SendDialog } from "@/components/send-dialog";
 import { cn } from "@/lib/utils";
 import { formatDateTime, initials, type Prescription, type PrescriptionStatus } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/historico")({
+export const Route = createFileRoute("/_authenticated/historico")({
   head: () => ({
     meta: [
       { title: "Histórico de prescrições — ReceitaJá" },

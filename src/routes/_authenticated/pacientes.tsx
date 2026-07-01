@@ -20,7 +20,7 @@ import {
   type Patient,
 } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/pacientes")({
+export const Route = createFileRoute("/_authenticated/pacientes")({
   head: () => ({
     meta: [
       { title: "Pacientes — ReceitaJá" },

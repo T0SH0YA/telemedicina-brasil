@@ -46,7 +46,7 @@ import {
   type Prescription,
 } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/nova-prescricao")({
+export const Route = createFileRoute("/_authenticated/nova-prescricao")({
   validateSearch: (search: Record<string, unknown>): { paciente?: string } => ({
     paciente: typeof search.paciente === "string" ? search.paciente : undefined,
   }),
