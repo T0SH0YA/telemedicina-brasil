@@ -1,8 +1,15 @@
-// Importa a base oficial de MEDICAMENTOS da ANVISA (DADOS_ABERTOS_MEDICAMENTOS.csv)
-// O arquivo é lido do bucket privado "fontes-oficiais" (a ANVISA tem cadeia de
-// certificado incompleta e não pode ser baixada diretamente pelo Deno).
+// Importa a base oficial de PREÇOS DE MEDICAMENTOS da CMED/ANVISA.
+// Esta base traz a coluna APRESENTAÇÃO com a concentração (mg/g/mL),
+// o princípio ativo (SUBSTÂNCIA), o nome comercial (PRODUTO), a tarja
+// e a classe terapêutica de todos os medicamentos comercializados no Brasil.
+//
+// O arquivo XLSX (ex.: "xls_conformidade_site_AAAAMMDD.xlsx") deve ser
+// baixado do portal da Anvisa (www.gov.br/anvisa/.../cmed/precos) e enviado
+// para o bucket privado "fontes-oficiais" com o nome definido em OBJECT.
+// A Anvisa tem cadeia de certificado incompleta e não pode ser baixada
+// diretamente pelo Deno, por isso lemos do armazenamento do Supabase.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { parse } from "https://deno.land/std@0.224.0/csv/parse.ts";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -12,19 +19,81 @@ const CORS = {
 };
 
 const BUCKET = "fontes-oficiais";
-const OBJECT = "anvisa/DADOS_ABERTOS_MEDICAMENTOS.csv";
+const OBJECT = "anvisa/cmed-precos.xlsx";
 
-function mapTipo(cat: string): "generico" | "similar" | "referencia" {
-  const c = (cat || "").trim().toLowerCase();
-  if (c === "genérico" || c === "generico") return "generico";
-  if (c === "similar") return "similar";
+// Índice das colunas na planilha da CMED (cabeçalho detectado em runtime).
+const COL = {
+  substancia: 0,
+  laboratorio: 2,
+  registro: 4,
+  ean1: 5,
+  produto: 8,
+  apresentacao: 9,
+  classe: 10,
+  tipo: 11,
+  comercializacao: 71,
+  tarja: 72,
+};
+
+function mapTipo(t: string): "generico" | "similar" | "referencia" {
+  const c = (t || "").trim().toLowerCase();
+  if (c.includes("gen")) return "generico";
+  if (c.includes("similar")) return "similar";
   return "referencia";
 }
 
+function isControlado(tarja: string): boolean {
+  const t = (tarja || "").toLowerCase();
+  return t.includes("preta") || t.includes("restri");
+}
+
+// Converte a apresentação "crua" da CMED em algo legível na receita.
+// Ex.: "500 MG COM REV CT BL AL PLAS PVDC OPC X 20" -> "500 mg comprimido revestido"
+// Mantém a concentração e a forma farmacêutica; descarta a embalagem.
+const FORMAS: Array<[RegExp, string]> = [
+  [/\bCOM\s+REV\b/, "comprimido revestido"],
+  [/\bCOM\s+EFERV\b/, "comprimido efervescente"],
+  [/\bCOM\b/, "comprimido"],
+  [/\bCPR\b/, "comprimido"],
+  [/\bCAP\b/, "cápsula"],
+  [/\bDRG\b/, "drágea"],
+  [/\bSOL\s+INJ\b/, "solução injetável"],
+  [/\bSOL\s+OR\b/, "solução oral"],
+  [/\bSOL\b/, "solução"],
+  [/\bSUS\s+OR\b/, "suspensão oral"],
+  [/\bSUS\b/, "suspensão"],
+  [/\bXPE\b/, "xarope"],
+  [/\bGEL\b/, "gel"],
+  [/\bPOM\b/, "pomada"],
+  [/\bCREM?\b/, "creme"],
+  [/\bGTS?\b/, "gotas"],
+  [/\bSPRAY\b/, "spray"],
+  [/\bAER\b/, "aerossol"],
+  [/\bPO\b/, "pó"],
+];
+
+function limpaApresentacao(raw: string): string {
+  let up = (raw || "").toUpperCase().trim();
+  if (!up) return "";
+  up = up.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+  // Concentração: números/"+"/"," iniciais seguidos de unidade (MG, G, MG/ML, %, UI...).
+  const concMatch = up.match(
+    /^([\d.,+\s]*[\d.,]+\s*(?:MG|G|MCG|UI|%|ML)(?:\s*\/\s*[\d.,]*\s*(?:MG|G|MCG|ML|DOSE|UI|H))?)/,
+  );
+  const conc = concMatch ? concMatch[1].replace(/\s+/g, " ").trim() : "";
+  // Forma farmacêutica: primeira que casar.
+  let forma = "";
+  for (const [re, nome] of FORMAS) {
+    if (re.test(up)) { forma = nome; break; }
+  }
+  const partes = [conc.toLowerCase(), forma].filter(Boolean);
+  // Fallback: se não achou nada, devolve os primeiros termos crus.
+  if (partes.length === 0) return up.split(/\s+/).slice(0, 4).join(" ").toLowerCase();
+  return partes.join(" ");
+}
+
 function limpaLab(v: string): string {
-  // "73663650000190 - RANBAXY FARMACÊUTICA LTDA" -> "RANBAXY FARMACÊUTICA LTDA"
-  const idx = v.indexOf(" - ");
-  return (idx >= 0 ? v.slice(idx + 3) : v).trim();
+  return (v || "").trim();
 }
 
 Deno.serve(async (req) => {
@@ -42,50 +111,66 @@ Deno.serve(async (req) => {
       .download(OBJECT);
     if (dlErr || !file) {
       throw new Error(
-        `Não foi possível ler a base da ANVISA no armazenamento: ${dlErr?.message ?? "arquivo ausente"}`,
+        `Não foi possível ler a base da CMED (${BUCKET}/${OBJECT}): ${dlErr?.message ?? "arquivo ausente"}`,
       );
     }
 
-    const buf = await file.arrayBuffer();
-    const text = new TextDecoder("iso-8859-1").decode(buf);
-    const rows = parse(text, { separator: ";", lazyQuotes: true }) as string[][];
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json<string[]>(ws, {
+      header: 1,
+      defval: "",
+      raw: false,
+    });
 
-    // header: TIPO_PRODUTO;NOME_PRODUTO;DATA_FINALIZACAO_PROCESSO;CATEGORIA_REGULATORIA;
-    // NUMERO_REGISTRO_PRODUTO;DATA_VENCIMENTO_REGISTRO;NUMERO_PROCESSO;CLASSE_TERAPEUTICA;
-    // EMPRESA_DETENTORA_REGISTRO;SITUACAO_REGISTRO;PRINCIPIO_ATIVO
-    const dataRows = rows.slice(1).filter((r) => r.length >= 11);
+    // Detecta a linha de cabeçalho (com SUBSTÂNCIA e APRESENTAÇÃO preenchidos).
+    let hdrIdx = -1;
+    for (let i = 0; i < Math.min(aoa.length, 80); i++) {
+      const row = (aoa[i] || []).map((c) => String(c).toUpperCase());
+      const nonEmpty = row.filter((c) => c.trim() !== "").length;
+      if (nonEmpty > 40 && row.some((c) => c.includes("APRESENT")) && row.some((c) => c.includes("SUBST"))) {
+        hdrIdx = i;
+        break;
+      }
+    }
+    if (hdrIdx < 0) throw new Error("Cabeçalho da planilha CMED não encontrado.");
 
-    // Dedup por (registro, produto) para evitar conflito no mesmo lote
+    const dataRows = aoa.slice(hdrIdx + 1);
+
     const seen = new Set<string>();
     const registros: Record<string, unknown>[] = [];
     let ignorados = 0;
 
     for (const r of dataRows) {
-      const tipoProduto = (r[0] || "").trim();
-      const situacao = (r[9] || "").trim();
-      if (tipoProduto !== "MEDICAMENTO" || situacao !== "Ativo") {
+      const produto = String(r[COL.produto] ?? "").trim();
+      const registro = String(r[COL.registro] ?? "").trim();
+      const comercializacao = String(r[COL.comercializacao] ?? "").trim().toLowerCase();
+
+      // Só medicamentos com nome e efetivamente comercializados.
+      if (!produto || comercializacao === "não" || comercializacao === "nao") {
         ignorados++;
         continue;
       }
-      const produto = (r[1] || "").trim();
-      const registro = (r[4] || "").trim();
-      if (!produto) {
-        ignorados++;
-        continue;
-      }
+
       const key = `${registro}||${produto}`;
       if (seen.has(key)) continue;
       seen.add(key);
 
+      const tarjaRaw = String(r[COL.tarja] ?? "");
+      const tarja = tarjaRaw.replace(/^tarja/i, "").trim();
+
       registros.push({
         produto,
-        substancia: (r[10] || "").trim() || null,
-        laboratorio: limpaLab(r[8] || "") || null,
-        classe_terapeutica: (r[7] || "").trim() || null,
-        categoria_regulatoria: (r[3] || "").trim() || null,
-        tipo: mapTipo(r[3] || ""),
+        substancia: String(r[COL.substancia] ?? "").trim() || null,
+        apresentacao: limpaApresentacao(String(r[COL.apresentacao] ?? "")) || null,
+        laboratorio: limpaLab(String(r[COL.laboratorio] ?? "")) || null,
+        classe_terapeutica: String(r[COL.classe] ?? "").trim() || null,
+        tipo: mapTipo(String(r[COL.tipo] ?? "")),
+        tarja: tarja || null,
+        controlado: isControlado(tarjaRaw),
         registro: registro || null,
-        situacao: situacao || null,
+        situacao: "Comercializado",
       });
     }
 
@@ -107,7 +192,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: erros.length === 0,
-        fonte: "ANVISA — DADOS_ABERTOS_MEDICAMENTOS",
+        fonte: "CMED/ANVISA — Lista de Preços de Medicamentos",
         total_linhas: dataRows.length,
         importados,
         ignorados,
