@@ -18,8 +18,7 @@ import "@fontsource/manrope/700.css";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppShell } from "../components/app-shell";
-import { RxProvider } from "../lib/rx-store";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
