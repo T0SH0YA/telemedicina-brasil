@@ -328,8 +328,35 @@ function NovaPrescricao() {
             )}
           </Section>
 
-          {/* 4. Observações */}
-          <Section step={4} icon={Plus} title="Observações (opcional)">
+          {/* 4. Hipótese diagnóstica (CID) */}
+          <Section step={4} icon={Stethoscope} title="Hipótese diagnóstica (CID-10)">
+            {cid ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-accent/50 p-3">
+                <p className="min-w-0 truncate text-sm font-semibold text-foreground">
+                  <span className="font-mono">{cid.codigo}</span> — {cid.descricao}
+                </p>
+                <Button variant="ghost" size="sm" onClick={() => setCid(null)}>
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <AsyncCombobox<CidResult>
+                placeholder="Buscar por código ou descrição (ex.: J11 ou gripe)..."
+                search={(q) => searchCid(q)}
+                onSelect={setCid}
+                getKey={(c) => c.codigo}
+                emptyText="Nenhum CID encontrado."
+                renderItem={(c) => (
+                  <span className="block min-w-0 truncate text-sm font-medium text-foreground">
+                    <span className="font-mono">{c.codigo}</span> — {c.descricao}
+                  </span>
+                )}
+              />
+            )}
+          </Section>
+
+          {/* 5. Observações */}
+          <Section step={5} icon={Plus} title="Observações (opcional)">
             <Textarea
               placeholder="Orientações ao paciente, retorno, etc."
               value={notes}
