@@ -14,7 +14,284 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      doctor_profiles: {
+        Row: {
+          clinic_address: string | null
+          clinic_name: string | null
+          clinic_phone: string | null
+          created_at: string
+          crm: string | null
+          crm_uf: string | null
+          full_name: string
+          rqe: string | null
+          specialty: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          clinic_address?: string | null
+          clinic_name?: string | null
+          clinic_phone?: string | null
+          created_at?: string
+          crm?: string | null
+          crm_uf?: string | null
+          full_name: string
+          rqe?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          clinic_address?: string | null
+          clinic_name?: string | null
+          clinic_phone?: string | null
+          created_at?: string
+          crm?: string | null
+          crm_uf?: string | null
+          full_name?: string
+          rqe?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      medications: {
+        Row: {
+          active_ingredient: string | null
+          brand_name: string
+          category: string | null
+          controlled: boolean
+          created_at: string
+          default_posology: string | null
+          drug_kind: Database["public"]["Enums"]["drug_kind"] | null
+          id: string
+          presentation: string | null
+        }
+        Insert: {
+          active_ingredient?: string | null
+          brand_name: string
+          category?: string | null
+          controlled?: boolean
+          created_at?: string
+          default_posology?: string | null
+          drug_kind?: Database["public"]["Enums"]["drug_kind"] | null
+          id?: string
+          presentation?: string | null
+        }
+        Update: {
+          active_ingredient?: string | null
+          brand_name?: string
+          category?: string | null
+          controlled?: boolean
+          created_at?: string
+          default_posology?: string | null
+          drug_kind?: Database["public"]["Enums"]["drug_kind"] | null
+          id?: string
+          presentation?: string | null
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          address: string | null
+          allergies: string[]
+          birth_date: string | null
+          city: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          owner_id: string
+          phone: string | null
+          sex: Database["public"]["Enums"]["patient_sex"] | null
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          address?: string | null
+          allergies?: string[]
+          birth_date?: string | null
+          city?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          owner_id?: string
+          phone?: string | null
+          sex?: Database["public"]["Enums"]["patient_sex"] | null
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          address?: string | null
+          allergies?: string[]
+          birth_date?: string | null
+          city?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          phone?: string | null
+          sex?: Database["public"]["Enums"]["patient_sex"] | null
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      prescription_items: {
+        Row: {
+          compounded: boolean
+          controlled: boolean
+          created_at: string
+          dosage: string | null
+          id: string
+          medication_id: string | null
+          name: string
+          owner_id: string
+          posology: string | null
+          prescription_id: string
+          presentation: string | null
+          quantity: string | null
+        }
+        Insert: {
+          compounded?: boolean
+          controlled?: boolean
+          created_at?: string
+          dosage?: string | null
+          id?: string
+          medication_id?: string | null
+          name: string
+          owner_id?: string
+          posology?: string | null
+          prescription_id: string
+          presentation?: string | null
+          quantity?: string | null
+        }
+        Update: {
+          compounded?: boolean
+          controlled?: boolean
+          created_at?: string
+          dosage?: string | null
+          id?: string
+          medication_id?: string | null
+          name?: string
+          owner_id?: string
+          posology?: string | null
+          prescription_id?: string
+          presentation?: string | null
+          quantity?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescription_items_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_items_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prescription_templates: {
+        Row: {
+          created_at: string
+          doc_type: Database["public"]["Enums"]["prescription_doc_type"]
+          id: string
+          items: Json
+          notes: string | null
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          id?: string
+          items?: Json
+          notes?: string | null
+          owner_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          id?: string
+          items?: Json
+          notes?: string | null
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          clinic_location: string | null
+          created_at: string
+          doc_type: Database["public"]["Enums"]["prescription_doc_type"]
+          id: string
+          issued_at: string | null
+          notes: string | null
+          owner_id: string
+          patient_id: string | null
+          patient_name: string
+          sent_to: string | null
+          status: Database["public"]["Enums"]["prescription_status"]
+          updated_at: string
+          validation_token: string
+        }
+        Insert: {
+          clinic_location?: string | null
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          owner_id?: string
+          patient_id?: string | null
+          patient_name: string
+          sent_to?: string | null
+          status?: Database["public"]["Enums"]["prescription_status"]
+          updated_at?: string
+          validation_token: string
+        }
+        Update: {
+          clinic_location?: string | null
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          owner_id?: string
+          patient_id?: string | null
+          patient_name?: string
+          sent_to?: string | null
+          status?: Database["public"]["Enums"]["prescription_status"]
+          updated_at?: string
+          validation_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +300,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      drug_kind: "generico" | "similar" | "referencia"
+      patient_sex: "M" | "F" | "outro"
+      prescription_doc_type: "simples" | "controle_especial"
+      prescription_status: "rascunho" | "emitida" | "enviada" | "cancelada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +430,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      drug_kind: ["generico", "similar", "referencia"],
+      patient_sex: ["M", "F", "outro"],
+      prescription_doc_type: ["simples", "controle_especial"],
+      prescription_status: ["rascunho", "emitida", "enviada", "cancelada"],
+    },
   },
 } as const
