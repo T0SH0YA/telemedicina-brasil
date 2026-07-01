@@ -17,6 +17,42 @@ import { useTemplates } from "@/lib/templates";
 import { CidField, NotesField, type DocFormProps } from "./form-shared";
 import type { PrescriptionItem } from "@/lib/types";
 
+// Apresentações comuns de mercado (valor de referência editável).
+// A base ANVISA de dados abertos não traz a concentração; este mapa
+// pré-preenche uma sugestão quando a apresentação vier vazia. O médico
+// deve sempre revisar e ajustar conforme o produto prescrito.
+const APRESENTACOES_COMUNS: Record<string, string> = {
+  dipirona: "500 mg comprimido (também 300 mg e 1 g)",
+  paracetamol: "500 mg comprimido (também 750 mg)",
+  ibuprofeno: "400 mg comprimido (também 200 mg e 600 mg)",
+  amoxicilina: "500 mg cápsula (também 875 mg)",
+  azitromicina: "500 mg comprimido",
+  omeprazol: "20 mg cápsula (também 40 mg)",
+  losartana: "50 mg comprimido (também 25 mg e 100 mg)",
+  "losartana potássica": "50 mg comprimido (também 25 mg e 100 mg)",
+  metformina: "850 mg comprimido (também 500 mg e 1 g)",
+  sinvastatina: "20 mg comprimido (também 10 mg e 40 mg)",
+  atenolol: "50 mg comprimido (também 25 mg e 100 mg)",
+  captopril: "25 mg comprimido (também 12,5 mg e 50 mg)",
+  enalapril: "10 mg comprimido (também 5 mg e 20 mg)",
+  hidroclorotiazida: "25 mg comprimido (também 50 mg)",
+  prednisona: "20 mg comprimido (também 5 mg)",
+  dexametasona: "4 mg comprimido (também 0,5 mg)",
+  cefalexina: "500 mg cápsula",
+  ciprofloxacino: "500 mg comprimido",
+  nimesulida: "100 mg comprimido",
+  diclofenaco: "50 mg comprimido",
+  clonazepam: "2 mg comprimido (também 0,5 mg)",
+};
+
+function sugerirApresentacao(substancia?: string, produto?: string): string {
+  const chave = (substancia || produto || "").toLowerCase().trim();
+  if (!chave) return "";
+  if (APRESENTACOES_COMUNS[chave]) return APRESENTACOES_COMUNS[chave];
+  const achado = Object.keys(APRESENTACOES_COMUNS).find((k) => chave.includes(k));
+  return achado ? APRESENTACOES_COMUNS[achado] : "";
+}
+
 export function ReceitaForm({
   documentType,
   cid,
@@ -43,7 +79,7 @@ export function ReceitaForm({
       {
         medicationId: m.id,
         name: nome,
-        form: [m.apresentacao, m.laboratorio].filter(Boolean).join(" · "),
+        form: [m.apresentacao || sugerirApresentacao(m.substancia, m.produto), m.laboratorio].filter(Boolean).join(" · "),
         posology: formatPosology(sug),
         quantity: sug.quantidade,
         controlled: m.controlado,
@@ -183,22 +219,32 @@ export function ReceitaForm({
                         <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">Controlado</span>
                       )}
                     </div>
-                    {item.form && (<p className="truncate text-[11px] text-muted-foreground">{item.form}</p>)}
+                    {item.form && <p className="truncate text-xs text-muted-foreground">{item.form}</p>}
                   </div>
                   <button onClick={() => removeItem(item.medicationId)} className="text-muted-foreground hover:text-destructive" aria-label="Remover">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px]">
+                <div className="mt-2 space-y-2">
                   <label className="block">
-                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Posologia</span>
-                    <Input value={item.posology} onChange={(e) => updateItem(item.medicationId, { posology: e.target.value })} />
+                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Apresentação (mg/g)</span>
+                    <Input
+                      value={item.form}
+                      onChange={(e) => updateItem(item.medicationId, { form: e.target.value })}
+                      placeholder="Ex.: 500 mg comprimido / 300 mg cápsula / 1 g"
+                    />
                   </label>
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Quantidade</span>
-                    <Input value={item.quantity} onChange={(e) => updateItem(item.medicationId, { quantity: e.target.value })} />
-                  </label>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_140px]">
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Posologia</span>
+                      <Input value={item.posology} onChange={(e) => updateItem(item.medicationId, { posology: e.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">Quantidade</span>
+                      <Input value={item.quantity} onChange={(e) => updateItem(item.medicationId, { quantity: e.target.value })} />
+                    </label>
+                  </div>
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
