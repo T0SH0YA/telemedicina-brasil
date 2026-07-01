@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import type { PrescriptionStatus, PrescriptionType } from "@/lib/types";
+import { docMeta } from "@/lib/document-types";
+import type { DocumentType, PrescriptionStatus } from "@/lib/types";
 
 const statusMap: Record<PrescriptionStatus, { label: string; className: string }> = {
   rascunho: { label: "Rascunho", className: "bg-muted text-muted-foreground" },
@@ -23,16 +24,21 @@ export function StatusBadge({ status }: { status: PrescriptionStatus }) {
   );
 }
 
-export function TypeBadge({ type }: { type: PrescriptionType }) {
-  const controlled = type === "controle_especial";
+// Tipos que recebem destaque (tarja) por serem controlados.
+const highlighted: DocumentType[] = ["receita_controle_especial", "receita_antimicrobiano"];
+
+export function DocumentTypeBadge({ type }: { type: DocumentType }) {
+  const meta = docMeta(type);
+  const isHighlighted = highlighted.includes(type);
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold",
-        controlled ? "bg-warning/20 text-warning-foreground" : "bg-muted text-muted-foreground",
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+        isHighlighted ? "bg-warning/20 text-warning-foreground" : "bg-muted text-muted-foreground",
       )}
     >
-      {controlled ? "Controle especial" : "Receita simples"}
+      <meta.icon className="h-3 w-3" />
+      {meta.short}
     </span>
   );
 }

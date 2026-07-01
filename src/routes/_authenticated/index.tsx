@@ -13,7 +13,7 @@ import {
 import { useRx } from "@/lib/data";
 import { useDoctor } from "@/lib/doctor-context";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, TypeBadge } from "@/components/status-badge";
+import { StatusBadge, DocumentTypeBadge } from "@/components/status-badge";
 import { DocumentDialog } from "@/components/document-dialog";
 import { SendDialog } from "@/components/send-dialog";
 import { crmDisplay, formatDateTime, initials } from "@/lib/format";
@@ -70,7 +70,7 @@ function Dashboard() {
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild>
                 <Link to="/nova-prescricao">
-                  <FilePlus2 className="h-4 w-4" /> Nova prescrição
+                  <FilePlus2 className="h-4 w-4" /> Novo documento
                 </Link>
               </Button>
               <Button asChild variant="outline">
@@ -136,7 +136,7 @@ function Dashboard() {
             </p>
             <Button asChild className="mt-4">
               <Link to="/nova-prescricao">
-                <FilePlus2 className="h-4 w-4" /> Nova prescrição
+                <FilePlus2 className="h-4 w-4" /> Novo documento
               </Link>
             </Button>
           </div>
@@ -164,7 +164,7 @@ function Dashboard() {
                   </span>
                 </button>
                 <div className="flex items-center gap-2 sm:justify-end">
-                  <TypeBadge type={rx.type} />
+                  <DocumentTypeBadge type={rx.documentType} />
                   <StatusBadge status={rx.status} />
                 </div>
               </li>

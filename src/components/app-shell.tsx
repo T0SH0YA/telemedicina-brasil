@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/nova-prescricao", label: "Nova prescrição", icon: FilePlus2 },
+  { to: "/nova-prescricao", label: "Novo documento", icon: FilePlus2 },
   { to: "/historico", label: "Histórico", icon: ScrollText },
   { to: "/pacientes", label: "Pacientes", icon: Users },
   { to: "/admin", label: "Administração", icon: DatabaseZap },
@@ -137,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-2">
             <Button asChild className="hidden sm:inline-flex">
               <Link to="/nova-prescricao">
-                <Plus className="h-4 w-4" /> Nova prescrição
+                <Plus className="h-4 w-4" /> Novo documento
               </Link>
             </Button>
           </div>

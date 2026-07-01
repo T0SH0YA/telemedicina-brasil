@@ -1,7 +1,9 @@
 import { Download, Send } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PrescriptionDocument } from "@/components/prescription-document";
+import { DocumentView } from "@/components/document-view";
+import { docMeta } from "@/lib/document-types";
 import type { Prescription } from "@/lib/types";
 
 export function DocumentDialog({
@@ -20,6 +22,9 @@ export function DocumentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] gap-0 overflow-y-auto border-none bg-muted/40 p-4 sm:max-w-3xl sm:p-6">
+        <VisuallyHidden>
+          <DialogTitle>{docMeta(rx.documentType).docTitle}</DialogTitle>
+        </VisuallyHidden>
         <div className="no-print mb-4 flex flex-wrap items-center justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Download className="h-4 w-4" /> Baixar PDF
@@ -30,7 +35,7 @@ export function DocumentDialog({
             </Button>
           )}
         </div>
-        <PrescriptionDocument rx={rx} />
+        <DocumentView rx={rx} />
       </DialogContent>
     </Dialog>
   );

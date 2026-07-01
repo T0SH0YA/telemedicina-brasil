@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateCode } from "./format";
 import type {
   DoctorProfile,
+  DocumentPayload,
+  NewDocumentInput,
   NewPatientInput,
-  NewPrescriptionInput,
   Patient,
   Prescription,
   PrescriptionItem,
@@ -50,6 +51,8 @@ function mapPrescription(row: any): Prescription {
     patientId: row.patient_id ?? null,
     patientName: row.patient_name,
     type: row.doc_type,
+    documentType: row.document_type ?? "receita_simples",
+    payload: (row.payload ?? {}) as DocumentPayload,
     items,
     notes: row.notes ?? undefined,
     cidCodigo: row.cid_codigo ?? undefined,
@@ -104,14 +107,35 @@ async function insertPatient(input: NewPatientInput): Promise<Patient> {
   return mapPatient(data);
 }
 
-async function insertPrescription(input: NewPrescriptionInput): Promise<Prescription> {
+function isUuid(v: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+function itemRows(prescriptionId: string, items: PrescriptionItem[]) {
+  return items.map((i) => ({
+    prescription_id: prescriptionId,
+    medicamento_id: isUuid(i.medicationId) ? i.medicationId : null,
+    name: i.name,
+    presentation: i.form || null,
+    dosage: i.dosage || null,
+    quantity: i.quantity || null,
+    posology: i.posology || null,
+    controlled: i.controlled,
+    compounded: i.compounded ?? false,
+  }));
+}
+
+async function insertDocument(input: NewDocumentInput): Promise<Prescription> {
   const code = generateCode();
+  const items = input.items ?? [];
   const { data: rx, error } = await supabase
     .from("prescriptions")
     .insert({
       patient_id: input.patient.id,
       patient_name: input.patient.name,
       doc_type: input.type,
+      document_type: input.documentType,
+      payload: (input.payload ?? {}) as any,
       status: "emitida",
       validation_token: code,
       notes: input.notes || null,
@@ -123,27 +147,45 @@ async function insertPrescription(input: NewPrescriptionInput): Promise<Prescrip
     .single();
   if (error) throw error;
 
-  if (input.items.length > 0) {
-    const items = input.items.map((i) => ({
-      prescription_id: rx.id,
-      medicamento_id: isUuid(i.medicationId) ? i.medicationId : null,
-      name: i.name,
-      presentation: i.form || null,
-      dosage: i.dosage || null,
-      quantity: i.quantity || null,
-      posology: i.posology || null,
-      controlled: i.controlled,
-      compounded: i.compounded ?? false,
-    }));
-    const { error: itemsError } = await supabase.from("prescription_items").insert(items);
+  if (items.length > 0) {
+    const { error: itemsError } = await supabase
+      .from("prescription_items")
+      .insert(itemRows(rx.id, items));
     if (itemsError) throw itemsError;
   }
 
-  return { ...mapPrescription(rx), items: input.items, patient: input.patient };
+  return { ...mapPrescription(rx), items, patient: input.patient };
 }
 
-function isUuid(v: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+async function updateDocument(id: string, input: NewDocumentInput): Promise<Prescription> {
+  const items = input.items ?? [];
+  const { data: rx, error } = await supabase
+    .from("prescriptions")
+    .update({
+      patient_id: input.patient.id,
+      patient_name: input.patient.name,
+      doc_type: input.type,
+      document_type: input.documentType,
+      payload: (input.payload ?? {}) as any,
+      notes: input.notes || null,
+      cid_codigo: input.cidCodigo || null,
+      cid_descricao: input.cidDescricao || null,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Substitui os itens da prescrição.
+  await supabase.from("prescription_items").delete().eq("prescription_id", id);
+  if (items.length > 0) {
+    const { error: itemsError } = await supabase
+      .from("prescription_items")
+      .insert(itemRows(id, items));
+    if (itemsError) throw itemsError;
+  }
+
+  return { ...mapPrescription(rx), items, patient: input.patient };
 }
 
 /* -------------------------------- hooks -------------------------------- */
@@ -163,8 +205,13 @@ export function useRx() {
       await qc.invalidateQueries({ queryKey: ["patients"] });
       return p;
     },
-    async createPrescription(input: NewPrescriptionInput) {
-      const rx = await insertPrescription(input);
+    async createDocument(input: NewDocumentInput) {
+      const rx = await insertDocument(input);
+      await qc.invalidateQueries({ queryKey: ["prescriptions"] });
+      return rx;
+    },
+    async updateDocument(id: string, input: NewDocumentInput) {
+      const rx = await updateDocument(id, input);
       await qc.invalidateQueries({ queryKey: ["prescriptions"] });
       return rx;
     },
