@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as NovaPrescricaoRouteImport } from './routes/nova-prescricao'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PacientesRoute = PacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,25 @@ export interface FileRoutesById {
   '/historico': typeof HistoricoRoute
   '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/historico' | '/nova-prescricao' | '/pacientes'
+  fullPaths:
+    | '/'
+    | '/historico'
+    | '/nova-prescricao'
+    | '/pacientes'
+    | '/sitemap.xml'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/historico' | '/nova-prescricao' | '/pacientes'
-  id: '__root__' | '/' | '/historico' | '/nova-prescricao' | '/pacientes'
+  to: '/' | '/historico' | '/nova-prescricao' | '/pacientes' | '/sitemap.xml'
+  id:
+    | '__root__'
+    | '/'
+    | '/historico'
+    | '/nova-prescricao'
+    | '/pacientes'
+    | '/sitemap.xml'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +87,18 @@ export interface RootRouteChildren {
   HistoricoRoute: typeof HistoricoRoute
   NovaPrescricaoRoute: typeof NovaPrescricaoRoute
   PacientesRoute: typeof PacientesRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pacientes': {
       id: '/pacientes'
       path: '/pacientes'
@@ -107,6 +135,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoricoRoute: HistoricoRoute,
   NovaPrescricaoRoute: NovaPrescricaoRoute,
   PacientesRoute: PacientesRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
