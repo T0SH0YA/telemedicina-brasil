@@ -16,8 +16,29 @@ export interface Patient {
   allergies: string[];
 }
 
+// Tipo de receituário (compatibilidade com a coluna doc_type existente).
 export type PrescriptionType = "simples" | "controle_especial";
+
+// Todos os tipos de documento médico suportados (coluna document_type).
+export type DocumentType =
+  | "receita_simples"
+  | "receita_controle_especial"
+  | "receita_antimicrobiano"
+  | "atestado"
+  | "declaracao_comparecimento"
+  | "declaracao_acompanhante"
+  | "laudo_medico"
+  | "relatorio_medico"
+  | "solicitacao_exames"
+  | "encaminhamento"
+  | "parecer_tecnico"
+  | "laudo_medicamento_especializado";
+
 export type PrescriptionStatus = "rascunho" | "emitida" | "enviada" | "cancelada";
+
+// Dados específicos de cada tipo de documento (coluna payload jsonb).
+// Deliberadamente flexível — cada formulário grava as chaves que usa.
+export type DocumentPayload = Record<string, unknown>;
 
 export interface PrescriptionItem {
   medicationId: string; // id local (uuid do medicamento de referência, quando houver)
@@ -35,7 +56,9 @@ export interface Prescription {
   code: string; // token de validação
   patientId: string | null;
   patientName: string;
-  type: PrescriptionType;
+  type: PrescriptionType; // receituário (doc_type)
+  documentType: DocumentType; // tipo de documento
+  payload: DocumentPayload; // dados específicos do tipo
   items: PrescriptionItem[];
   notes?: string;
   cidCodigo?: string;
@@ -71,11 +94,13 @@ export interface NewPatientInput {
   allergies?: string[];
 }
 
-export interface NewPrescriptionInput {
+export interface NewDocumentInput {
   patient: Patient;
-  type: PrescriptionType;
-  items: PrescriptionItem[];
+  documentType: DocumentType;
+  type: PrescriptionType; // receituário derivado (para doc_type / render de receita)
+  items?: PrescriptionItem[];
   notes?: string;
   cidCodigo?: string;
   cidDescricao?: string;
+  payload?: DocumentPayload;
 }

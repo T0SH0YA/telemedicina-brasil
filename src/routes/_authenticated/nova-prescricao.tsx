@@ -1,24 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Search,
-  Plus,
-  Trash2,
   ShieldCheck,
   User,
-  Pill,
-  Stethoscope,
+  FileText,
   FileSignature,
   Loader2,
   CheckCircle2,
   X,
-  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRx } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -28,49 +23,47 @@ import {
 } from "@/components/ui/dialog";
 import { DocumentDialog } from "@/components/document-dialog";
 import { SendDialog } from "@/components/send-dialog";
-import { AsyncCombobox } from "@/components/async-combobox";
-import {
-  searchMedicamentos,
-  searchCid,
-  type MedResult,
-  type CidResult,
-} from "@/lib/reference";
+import { DocumentTypeSelector } from "@/components/documents/type-selector";
+import { DocumentForm, canIssueDocument } from "@/components/documents/document-form";
+import { docMeta } from "@/lib/document-types";
+import type { CidResult } from "@/lib/reference";
 import { cn } from "@/lib/utils";
 import { ageLabel, crmDisplay, initials } from "@/lib/format";
 import { useDoctor } from "@/lib/doctor-context";
-import type {
-  Patient,
-  PrescriptionItem,
-  PrescriptionType,
-  Prescription,
-} from "@/lib/types";
+import type { DocumentType, Patient, PrescriptionItem, Prescription } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/nova-prescricao")({
-  validateSearch: (search: Record<string, unknown>): { paciente?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { paciente?: string; editar?: string; duplicar?: string } => ({
     paciente: typeof search.paciente === "string" ? search.paciente : undefined,
+    editar: typeof search.editar === "string" ? search.editar : undefined,
+    duplicar: typeof search.duplicar === "string" ? search.duplicar : undefined,
   }),
   head: () => ({
     meta: [
-      { title: "Nova prescrição — ReceitaJá" },
-      { name: "description", content: "Emita uma nova prescrição médica com assinatura digital." },
+      { title: "Novo documento — ReceitaJá" },
+      { name: "description", content: "Emita receitas, atestados, laudos e outros documentos médicos." },
     ],
   }),
-  component: NovaPrescricao,
+  component: NovoDocumento,
 });
 
-function NovaPrescricao() {
-  const { paciente } = Route.useSearch();
-  const { patients, createPrescription } = useRx();
+function NovoDocumento() {
+  const { paciente, editar, duplicar } = Route.useSearch();
+  const { patients, prescriptions, createDocument, updateDocument } = useRx();
   const doctor = useDoctor();
 
   const [patient, setPatient] = useState<Patient | null>(
     () => patients.find((p) => p.id === paciente) ?? null,
   );
   const [patientQuery, setPatientQuery] = useState("");
-  const [type, setType] = useState<PrescriptionType>("simples");
+  const [documentType, setDocumentType] = useState<DocumentType>("receita_simples");
   const [items, setItems] = useState<PrescriptionItem[]>([]);
   const [notes, setNotes] = useState("");
   const [cid, setCid] = useState<CidResult | null>(null);
+  const [payload, setPayloadState] = useState<Record<string, any>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [signOpen, setSignOpen] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -78,84 +71,96 @@ function NovaPrescricao() {
   const [viewIssued, setViewIssued] = useState(false);
   const [sending, setSending] = useState<Prescription | null>(null);
 
+  const meta = docMeta(documentType);
+  const setPayload = (patch: Record<string, any>) =>
+    setPayloadState((prev) => ({ ...prev, ...patch }));
+
+  // Hidrata o formulário ao editar/duplicar um documento existente.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current) return;
+    const sourceId = editar ?? duplicar;
+    if (!sourceId) return;
+    const source = prescriptions.find((p) => p.id === sourceId);
+    if (!source) return;
+    hydrated.current = true;
+    setPatient(source.patient ?? patients.find((p) => p.id === source.patientId) ?? null);
+    setDocumentType(source.documentType);
+    setItems(source.items.map((i) => ({ ...i })));
+    setNotes(source.notes ?? "");
+    setPayloadState({ ...(source.payload as Record<string, any>) });
+    setCid(
+      source.cidCodigo
+        ? { codigo: source.cidCodigo, descricao: source.cidDescricao ?? "", categoria: null }
+        : null,
+    );
+    if (editar) setEditingId(source.id);
+  }, [editar, duplicar, prescriptions, patients]);
+
   const patientResults = useMemo(
     () =>
-      patients.filter((p) =>
-        p.name.toLowerCase().includes(patientQuery.toLowerCase()) ||
-        (p.cpf ?? "").includes(patientQuery),
+      patients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(patientQuery.toLowerCase()) ||
+          (p.cpf ?? "").includes(patientQuery),
       ),
     [patients, patientQuery],
   );
 
-  const hasControlled = items.some((i) => i.controlled);
-
-  function addMedication(m: MedResult) {
-    if (items.some((i) => i.medicationId === m.id)) return;
-    const nome =
-      m.substancia && m.substancia.toLowerCase() !== m.produto.toLowerCase()
-        ? `${m.produto} (${m.substancia})`
-        : m.produto;
-    setItems((prev) => [
-      ...prev,
-      {
-        medicationId: m.id,
-        name: nome,
-        form: [m.apresentacao, m.laboratorio].filter(Boolean).join(" · "),
-        posology: "",
-        quantity: "1 caixa",
-        controlled: m.controlado,
-      },
-    ]);
-    if (m.controlado) setType("controle_especial");
+  function changeType(t: DocumentType) {
+    setDocumentType(t);
+    // Limpa dados específicos ao trocar de tipo, mantendo paciente.
+    setPayloadState({});
+    if (!docMeta(t).usesMedications) setItems([]);
   }
 
-  function updateItem(id: string, patch: Partial<PrescriptionItem>) {
-    setItems((prev) => prev.map((i) => (i.medicationId === id ? { ...i, ...patch } : i)));
-  }
-
-  function removeItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.medicationId !== id));
-  }
-
-  const canIssue = patient && items.length > 0;
+  const canIssue = !!patient && canIssueDocument(documentType, { items, payload, cid });
 
   function confirmSignature() {
     if (!patient) return;
     setSigning(true);
     setTimeout(async () => {
       try {
-        const rx = await createPrescription({
+        const input = {
           patient,
-          type,
-          items,
+          documentType,
+          type: meta.receituarioType,
+          items: meta.usesMedications ? items : [],
           notes: notes.trim() || undefined,
           cidCodigo: cid?.codigo,
           cidDescricao: cid?.descricao,
-        });
+          payload,
+        };
+        const rx = editingId ? await updateDocument(editingId, input) : await createDocument(input);
         setSignOpen(false);
         setIssued(rx);
         setViewIssued(true);
-        toast.success("Prescrição assinada e emitida com sucesso");
+        toast.success(editingId ? "Documento atualizado com sucesso" : "Documento assinado e emitido");
         // reset
         setPatient(null);
         setItems([]);
         setNotes("");
-        setType("simples");
+        setDocumentType("receita_simples");
         setCid(null);
+        setPayloadState({});
+        setEditingId(null);
+        hydrated.current = true;
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Falha ao emitir a prescrição.");
+        toast.error(err instanceof Error ? err.message : "Falha ao emitir o documento.");
       } finally {
         setSigning(false);
       }
-    }, 1400);
+    }, 1200);
   }
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Nova prescrição</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          {editingId ? "Editar documento" : "Novo documento"}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Selecione o paciente, adicione os medicamentos e assine digitalmente.
+          Selecione o paciente, escolha o tipo de documento, preencha e assine digitalmente.
         </p>
       </header>
 
@@ -199,186 +204,62 @@ function NovaPrescricao() {
                   />
                 </div>
                 <div className="max-h-56 space-y-1 overflow-y-auto">
-                  {patientResults.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setPatient(p);
-                        setPatientQuery("");
-                      }}
-                      className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted"
-                    >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary font-display text-xs font-bold text-secondary-foreground">
-                        {initials(p.name)}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {p.name}
+                  {patientResults.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">
+                      Nenhum paciente. Cadastre em “Pacientes”.
+                    </p>
+                  ) : (
+                    patientResults.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setPatient(p);
+                          setPatientQuery("");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary font-display text-xs font-bold text-secondary-foreground">
+                          {initials(p.name)}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {ageLabel(p.birthDate)} · {p.city ?? "—"}
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {p.name}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {ageLabel(p.birthDate)} · {p.city ?? "—"}
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                  ))}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}
           </Section>
 
-          {/* 2. Tipo */}
-          <Section step={2} icon={FileSignature} title="Tipo de receituário">
-            <div className="grid grid-cols-2 gap-3">
-              {(
-                [
-                  { id: "simples", label: "Receita simples", desc: "Medicamentos comuns" },
-                  {
-                    id: "controle_especial",
-                    label: "Controle especial",
-                    desc: "Medicamentos controlados",
-                  },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setType(opt.id)}
-                  className={cn(
-                    "rounded-xl border p-3 text-left transition-colors",
-                    type === opt.id
-                      ? "border-primary bg-accent/50"
-                      : "border-border hover:bg-muted/60",
-                  )}
-                >
-                  <p className="text-sm font-semibold text-foreground">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-            {hasControlled && type === "simples" && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-warning-foreground">
-                <AlertTriangle className="h-3.5 w-3.5" /> Há medicamento controlado — recomendado
-                controle especial.
-              </p>
-            )}
-          </Section>
+          {/* 2. Tipo de documento */}
+          {patient && (
+            <Section step={2} icon={FileText} title="Tipo de documento">
+              <DocumentTypeSelector value={documentType} onChange={changeType} />
+            </Section>
+          )}
 
-          {/* 3. Medicamentos */}
-          <Section step={3} icon={Pill} title="Medicamentos">
-            <AsyncCombobox<MedResult>
-              placeholder="Buscar por nome comercial ou princípio ativo (ex.: dipirona)..."
-              search={(q) => searchMedicamentos(q)}
-              onSelect={addMedication}
-              getKey={(m) => m.id}
-              emptyText="Nenhum medicamento encontrado na base ANVISA."
-              renderItem={(m) => (
-                <span className="flex w-full items-center justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-foreground">
-                      {m.produto}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {[m.substancia, m.apresentacao, m.laboratorio].filter(Boolean).join(" · ") ||
-                        "—"}
-                    </span>
-                  </span>
-                  {m.controlado && (
-                    <span className="shrink-0 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                      Controlado
-                    </span>
-                  )}
-                </span>
-              )}
-            />
-
-            {items.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
-                Nenhum medicamento adicionado ainda.
-              </p>
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {items.map((item) => (
-                  <li key={item.medicationId} className="rounded-xl border border-border p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <p className="font-display text-sm font-semibold text-foreground">
-                          {item.name}
-                        </p>
-                        {item.controlled && (
-                          <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                            Controlado
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => removeItem(item.medicationId)}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label="Remover"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px]">
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">
-                          Posologia
-                        </span>
-                        <Input
-                          value={item.posology}
-                          onChange={(e) => updateItem(item.medicationId, { posology: e.target.value })}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-medium uppercase text-muted-foreground">
-                          Quantidade
-                        </span>
-                        <Input
-                          value={item.quantity}
-                          onChange={(e) => updateItem(item.medicationId, { quantity: e.target.value })}
-                        />
-                      </label>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          {/* 4. Hipótese diagnóstica (CID) */}
-          <Section step={4} icon={Stethoscope} title="Hipótese diagnóstica (CID-10)">
-            {cid ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-accent/50 p-3">
-                <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-                  <span className="font-mono">{cid.codigo}</span> — {cid.descricao}
-                </p>
-                <Button variant="ghost" size="sm" onClick={() => setCid(null)}>
-                  Remover
-                </Button>
-              </div>
-            ) : (
-              <AsyncCombobox<CidResult>
-                placeholder="Buscar por código ou descrição (ex.: J11 ou gripe)..."
-                search={(q) => searchCid(q)}
-                onSelect={setCid}
-                getKey={(c) => c.codigo}
-                emptyText="Nenhum CID encontrado."
-                renderItem={(c) => (
-                  <span className="block min-w-0 truncate text-sm font-medium text-foreground">
-                    <span className="font-mono">{c.codigo}</span> — {c.descricao}
-                  </span>
-                )}
+          {/* 3. Formulário específico */}
+          {patient && (
+            <Section step={3} icon={meta.icon} title={meta.short}>
+              <DocumentForm
+                documentType={documentType}
+                payload={payload}
+                setPayload={setPayload}
+                cid={cid}
+                setCid={setCid}
+                items={items}
+                setItems={setItems}
+                notes={notes}
+                setNotes={setNotes}
               />
-            )}
-          </Section>
-
-          {/* 5. Observações */}
-          <Section step={5} icon={Plus} title="Observações (opcional)">
-            <Textarea
-              placeholder="Orientações ao paciente, retorno, etc."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </Section>
+            </Section>
+          )}
         </div>
 
         {/* Resumo */}
@@ -387,27 +268,25 @@ function NovaPrescricao() {
             <h3 className="font-display font-bold text-foreground">Resumo</h3>
             <dl className="mt-4 space-y-3 text-sm">
               <SummaryRow label="Paciente" value={patient?.name ?? "—"} />
-              <SummaryRow
-                label="Tipo"
-                value={type === "controle_especial" ? "Controle especial" : "Receita simples"}
-              />
-              <SummaryRow label="Medicamentos" value={`${items.length}`} />
+              <SummaryRow label="Documento" value={meta.short} />
+              {meta.usesMedications && (
+                <SummaryRow label="Medicamentos" value={`${items.length}`} />
+              )}
               <SummaryRow label="Médico" value={doctor.fullName} />
             </dl>
             <div className="mt-5 flex items-center gap-2 rounded-lg bg-muted/70 p-3 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
               Assinatura digital ICP-Brasil (simulada) aplicada na emissão.
             </div>
-            <Button
-              className="mt-4 w-full"
-              disabled={!canIssue}
-              onClick={() => setSignOpen(true)}
-            >
-              <FileSignature className="h-4 w-4" /> Assinar e emitir
+            <Button className="mt-4 w-full" disabled={!canIssue} onClick={() => setSignOpen(true)}>
+              <FileSignature className="h-4 w-4" />
+              {editingId ? "Salvar e assinar" : "Assinar e emitir"}
             </Button>
             {!canIssue && (
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                Selecione um paciente e ao menos um medicamento.
+                {patient
+                  ? "Preencha os campos obrigatórios do documento."
+                  : "Selecione um paciente para começar."}
               </p>
             )}
           </div>
@@ -420,8 +299,7 @@ function NovaPrescricao() {
           <DialogHeader>
             <DialogTitle>Assinatura digital</DialogTitle>
             <DialogDescription>
-              Confirme sua identidade para assinar a prescrição com o certificado ICP-Brasil
-              (simulado).
+              Confirme sua identidade para assinar o documento com o certificado ICP-Brasil (simulado).
             </DialogDescription>
           </DialogHeader>
 

@@ -291,12 +291,14 @@ export type Database = {
           clinic_location: string | null
           created_at: string
           doc_type: Database["public"]["Enums"]["prescription_doc_type"]
+          document_type: Database["public"]["Enums"]["document_type"]
           id: string
           issued_at: string | null
           notes: string | null
           owner_id: string
           patient_id: string | null
           patient_name: string
+          payload: Json
           sent_to: string | null
           status: Database["public"]["Enums"]["prescription_status"]
           updated_at: string
@@ -308,12 +310,14 @@ export type Database = {
           clinic_location?: string | null
           created_at?: string
           doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          document_type?: Database["public"]["Enums"]["document_type"]
           id?: string
           issued_at?: string | null
           notes?: string | null
           owner_id?: string
           patient_id?: string | null
           patient_name: string
+          payload?: Json
           sent_to?: string | null
           status?: Database["public"]["Enums"]["prescription_status"]
           updated_at?: string
@@ -325,12 +329,14 @@ export type Database = {
           clinic_location?: string | null
           created_at?: string
           doc_type?: Database["public"]["Enums"]["prescription_doc_type"]
+          document_type?: Database["public"]["Enums"]["document_type"]
           id?: string
           issued_at?: string | null
           notes?: string | null
           owner_id?: string
           patient_id?: string | null
           patient_name?: string
+          payload?: Json
           sent_to?: string | null
           status?: Database["public"]["Enums"]["prescription_status"]
           updated_at?: string
@@ -354,6 +360,19 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      document_type:
+        | "receita_simples"
+        | "receita_controle_especial"
+        | "receita_antimicrobiano"
+        | "atestado"
+        | "declaracao_comparecimento"
+        | "declaracao_acompanhante"
+        | "laudo_medico"
+        | "relatorio_medico"
+        | "solicitacao_exames"
+        | "encaminhamento"
+        | "parecer_tecnico"
+        | "laudo_medicamento_especializado"
       drug_kind: "generico" | "similar" | "referencia"
       patient_sex: "M" | "F" | "outro"
       prescription_doc_type: "simples" | "controle_especial"
@@ -485,6 +504,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      document_type: [
+        "receita_simples",
+        "receita_controle_especial",
+        "receita_antimicrobiano",
+        "atestado",
+        "declaracao_comparecimento",
+        "declaracao_acompanhante",
+        "laudo_medico",
+        "relatorio_medico",
+        "solicitacao_exames",
+        "encaminhamento",
+        "parecer_tecnico",
+        "laudo_medicamento_especializado",
+      ],
       drug_kind: ["generico", "similar", "referencia"],
       patient_sex: ["M", "F", "outro"],
       prescription_doc_type: ["simples", "controle_especial"],
