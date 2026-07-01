@@ -79,7 +79,7 @@ export function ReceitaForm({
       {
         medicationId: m.id,
         name: nome,
-        form: [m.apresentacao || sugerirApresentacao(m.substancia, m.produto), m.laboratorio].filter(Boolean).join(" · "),
+        form: [m.apresentacao || sugerirApresentacao(m.substancia ?? undefined, m.produto), m.laboratorio].filter(Boolean).join(" · "),
         posology: formatPosology(sug),
         quantity: sug.quantidade,
         controlled: m.controlado,

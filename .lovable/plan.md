@@ -1,27 +1,40 @@
 ## Diagnóstico
 
-O app não está compilando. O preview mostra o overlay de erro do Vite porque há um **erro de sintaxe** em `src/lib/posology.ts` (linha 168), dentro da função `formatPosology`:
+Rodei a checagem de tipos (`tsgo`) no projeto e encontrei **1 erro** que quebra o build:
 
-```js
-base += `${" "}".trim() + " " + s.duracao;
+```
+src/components/documents/receita-form.tsx(82,54): error TS2345:
+Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
 ```
 
-Essa linha mistura um template literal (crase) com aspas duplas e nunca fecha a string corretamente, gerando `[PARSE_ERROR] Expected a semicolon...`. Como esse arquivo entra na cadeia de imports do app inteiro, **nada renderiza**.
+### Causa
+
+Na linha 82, ao adicionar um medicamento, chamamos:
+
+```ts
+sugerirApresentacao(m.substancia, m.produto)
+```
+
+Mas `m.substancia` é do tipo `string | null` (vem da base ANVISA), enquanto a função `sugerirApresentacao(substancia?: string, produto?: string)` só aceita `string | undefined`. O TypeScript rejeita o `null`.
 
 ## Correção
 
-1. Substituir a linha 168 por uma concatenação simples e válida, adicionando a duração após um espaço:
-   ```js
-   base += " " + s.duracao;
-   ```
-   (o `.trim()` final já existe no `return`, então não é necessário aqui).
+Converter o `null` para `undefined` na chamada (dado `m.produto` já é `string`):
+
+```ts
+form: [
+  m.apresentacao || sugerirApresentacao(m.substancia ?? undefined, m.produto),
+  m.laboratorio,
+].filter(Boolean).join(" · "),
+```
+
+Isso mantém o comportamento atual (usa a apresentação sugerida quando a base não traz concentração) e satisfaz o tipo da função.
 
 ## Verificação
 
-2. Confirmar que o erro sumiu dos logs do dev server / overlay do Vite.
-3. Rodar checagem de tipos (`tsgo`) no arquivo para garantir que não há outros problemas.
-4. Abrir o preview e confirmar que a tela carrega normalmente (login → app), sem erros de console.
+1. Rodar `tsgo` novamente e confirmar 0 erros.
+2. Confirmar que o preview carrega sem overlay do Vite e sem erros no console.
 
 ## Observação
 
-É uma correção pontual de 1 linha, sem mudança de comportamento — apenas restaura a montagem correta da string de posologia (ex.: "... por 7 dias"). Depois disso posso fazer uma verificação end-to-end das telas principais (Dashboard, Novo documento, Histórico, Pacientes) se você quiser.
+É uma correção pontual de tipagem, sem mudança de comportamento. O restante do código passou na checagem de tipos.
