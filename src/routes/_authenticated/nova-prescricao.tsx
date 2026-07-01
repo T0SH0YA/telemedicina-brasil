@@ -61,6 +61,7 @@ export const Route = createFileRoute("/_authenticated/nova-prescricao")({
 function NovaPrescricao() {
   const { paciente } = Route.useSearch();
   const { patients, createPrescription } = useRx();
+  const doctor = useDoctor();
 
   const [patient, setPatient] = useState<Patient | null>(
     () => patients.find((p) => p.id === paciente) ?? null,
