@@ -1,18 +1,21 @@
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { useDoctor } from "@/lib/doctor-context";
 import {
-  doctor,
-  formatDateTime,
   ageFromBirth,
+  crmDisplay,
   formatDate,
-  patients,
-  type Prescription,
-} from "@/lib/mock-data";
+  formatDateTime,
+  sexLabel,
+} from "@/lib/format";
+import type { Prescription } from "@/lib/types";
 
 export function PrescriptionDocument({ rx }: { rx: Prescription }) {
-  const patient = patients.find((p) => p.id === rx.patientId);
+  const doctor = useDoctor();
+  const patient = rx.patient ?? null;
   const validationUrl = `https://receitaja.exemplo.com/validar/${rx.code}`;
+  const crm = crmDisplay(doctor);
 
   return (
     <div
@@ -23,14 +26,26 @@ export function PrescriptionDocument({ rx }: { rx: Prescription }) {
       <div className="flex items-start justify-between gap-4 border-b border-border pb-5">
         <div>
           <Logo />
-          <p className="mt-3 font-display text-base font-bold text-foreground">{doctor.clinic}</p>
-          <p className="text-xs text-muted-foreground">{doctor.address}</p>
-          <p className="text-xs text-muted-foreground">Tel. {doctor.phone}</p>
+          {doctor.clinicName && (
+            <p className="mt-3 font-display text-base font-bold text-foreground">
+              {doctor.clinicName}
+            </p>
+          )}
+          {doctor.clinicAddress && (
+            <p className="text-xs text-muted-foreground">{doctor.clinicAddress}</p>
+          )}
+          {doctor.clinicPhone && (
+            <p className="text-xs text-muted-foreground">Tel. {doctor.clinicPhone}</p>
+          )}
         </div>
         <div className="text-right">
-          <p className="font-display text-sm font-bold text-foreground">{doctor.name}</p>
-          <p className="text-xs text-muted-foreground">{doctor.specialty}</p>
-          <p className="text-xs text-muted-foreground">{doctor.crm} · {doctor.rqe}</p>
+          <p className="font-display text-sm font-bold text-foreground">{doctor.fullName}</p>
+          {doctor.specialty && (
+            <p className="text-xs text-muted-foreground">{doctor.specialty}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {[crm, doctor.rqe ? `RQE ${doctor.rqe}` : ""].filter(Boolean).join(" · ")}
+          </p>
         </div>
       </div>
 
@@ -52,12 +67,12 @@ export function PrescriptionDocument({ rx }: { rx: Prescription }) {
         <Field
           label="Nascimento"
           value={
-            patient
+            patient?.birthDate
               ? `${formatDate(patient.birthDate)} (${ageFromBirth(patient.birthDate)} anos)`
               : "—"
           }
         />
-        <Field label="Sexo" value={patient?.sex === "F" ? "Feminino" : "Masculino"} />
+        <Field label="Sexo" value={sexLabel(patient?.sex)} />
         <Field label="Emissão" value={formatDateTime(rx.createdAt)} />
         <Field label="Cidade" value={patient?.city ?? "—"} />
       </div>
@@ -90,7 +105,7 @@ export function PrescriptionDocument({ rx }: { rx: Prescription }) {
               </p>
               <span className="whitespace-nowrap text-xs text-muted-foreground">{item.quantity}</span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{item.form}</p>
+            {item.form && <p className="mt-1 text-sm text-muted-foreground">{item.form}</p>}
             <p className="mt-1.5 text-sm text-foreground">{item.posology}</p>
           </li>
         ))}
@@ -116,7 +131,8 @@ export function PrescriptionDocument({ rx }: { rx: Prescription }) {
               <CheckCircle2 className="h-4 w-4 text-success" /> Assinado digitalmente
             </p>
             <p className="text-xs text-muted-foreground">
-              {doctor.name} · {doctor.crm}
+              {doctor.fullName}
+              {crm ? ` · ${crm}` : ""}
             </p>
             <p className="text-xs text-muted-foreground">
               Certificado ICP-Brasil (simulado) · {formatDateTime(rx.createdAt)}
