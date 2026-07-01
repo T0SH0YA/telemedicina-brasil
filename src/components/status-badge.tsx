@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
-import type { PrescriptionStatus, PrescriptionType } from "@/lib/mock-data";
+import type { PrescriptionStatus, PrescriptionType } from "@/lib/types";
 
 const statusMap: Record<PrescriptionStatus, { label: string; className: string }> = {
+  rascunho: { label: "Rascunho", className: "bg-muted text-muted-foreground" },
   emitida: { label: "Emitida", className: "bg-accent text-accent-foreground" },
   enviada: { label: "Enviada", className: "bg-success/15 text-success" },
   cancelada: { label: "Cancelada", className: "bg-destructive/12 text-destructive" },
