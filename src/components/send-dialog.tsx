@@ -38,7 +38,7 @@ export function SendDialog({
   if (!rx) return null;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const link = origin + "/validar/" + rx.code;
-  const docLabel = docMeta(rx.documentType as DocumentType)?.label ?? "Documento";
+  const docLabel = docMeta(rx.documentType as DocumentType)?.short ?? "Documento";
 
   const handleSend = () => {
     if (selected === "WhatsApp") {

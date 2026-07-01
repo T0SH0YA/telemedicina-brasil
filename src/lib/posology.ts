@@ -165,7 +165,7 @@ export function formatPosology(s: PosologySuggestion): string {
   if (s.usoContinuo) {
     base += " — uso contínuo";
   } else if (s.duracao) {
-    base += `${" "}".trim() + " " + s.duracao;
+    base += " " + s.duracao;
   }
   if (s.observacao) {
     base += `, ${s.observacao}`;
