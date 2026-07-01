@@ -122,26 +122,31 @@ function NovaPrescricao() {
   function confirmSignature() {
     if (!patient) return;
     setSigning(true);
-    setTimeout(() => {
-      const rx = createPrescription({
-        patient,
-        type,
-        items,
-        notes: notes.trim() || undefined,
-        cidCodigo: cid?.codigo,
-        cidDescricao: cid?.descricao,
-      });
-      setSigning(false);
-      setSignOpen(false);
-      setIssued(rx);
-      setViewIssued(true);
-      toast.success("Prescrição assinada e emitida com sucesso");
-      // reset
-      setPatient(null);
-      setItems([]);
-      setNotes("");
-      setType("simples");
-      setCid(null);
+    setTimeout(async () => {
+      try {
+        const rx = await createPrescription({
+          patient,
+          type,
+          items,
+          notes: notes.trim() || undefined,
+          cidCodigo: cid?.codigo,
+          cidDescricao: cid?.descricao,
+        });
+        setSignOpen(false);
+        setIssued(rx);
+        setViewIssued(true);
+        toast.success("Prescrição assinada e emitida com sucesso");
+        // reset
+        setPatient(null);
+        setItems([]);
+        setNotes("");
+        setType("simples");
+        setCid(null);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Falha ao emitir a prescrição.");
+      } finally {
+        setSigning(false);
+      }
     }, 1400);
   }
 
