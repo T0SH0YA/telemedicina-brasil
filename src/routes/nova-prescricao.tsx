@@ -122,7 +122,14 @@ function NovaPrescricao() {
     if (!patient) return;
     setSigning(true);
     setTimeout(() => {
-      const rx = createPrescription({ patient, type, items, notes: notes.trim() || undefined });
+      const rx = createPrescription({
+        patient,
+        type,
+        items,
+        notes: notes.trim() || undefined,
+        cidCodigo: cid?.codigo,
+        cidDescricao: cid?.descricao,
+      });
       setSigning(false);
       setSignOpen(false);
       setIssued(rx);
@@ -133,6 +140,7 @@ function NovaPrescricao() {
       setItems([]);
       setNotes("");
       setType("simples");
+      setCid(null);
     }, 1400);
   }
 
