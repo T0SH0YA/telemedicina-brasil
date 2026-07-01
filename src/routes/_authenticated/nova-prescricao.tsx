@@ -15,7 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRx } from "@/lib/rx-store";
+import { useRx } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,15 +36,14 @@ import {
   type CidResult,
 } from "@/lib/reference";
 import { cn } from "@/lib/utils";
-import {
-  ageFromBirth,
-  initials,
-  doctor,
-  type Patient,
-  type PrescriptionItem,
-  type PrescriptionType,
-  type Prescription,
-} from "@/lib/mock-data";
+import { ageLabel, crmDisplay, initials } from "@/lib/format";
+import { useDoctor } from "@/lib/doctor-context";
+import type {
+  Patient,
+  PrescriptionItem,
+  PrescriptionType,
+  Prescription,
+} from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/nova-prescricao")({
   validateSearch: (search: Record<string, unknown>): { paciente?: string } => ({
