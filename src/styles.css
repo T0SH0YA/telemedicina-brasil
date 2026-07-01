@@ -183,3 +183,26 @@
     linear-gradient(90deg, oklch(0.6 0.11 190 / 0.05) 1px, transparent 1px);
   background-size: 22px 22px;
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible !important;
+  }
+  [data-print-root] {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 24px;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
