@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PacientesRouteImport } from './routes/pacientes'
+import { Route as NovaPrescricaoRouteImport } from './routes/nova-prescricao'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as IndexRouteImport } from './routes/index'
 
 const PacientesRoute = PacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NovaPrescricaoRoute = NovaPrescricaoRouteImport.update({
+  id: '/nova-prescricao',
+  path: '/nova-prescricao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoricoRoute = HistoricoRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/historico': typeof HistoricoRoute
+  '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/historico': typeof HistoricoRoute
+  '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/historico': typeof HistoricoRoute
+  '/nova-prescricao': typeof NovaPrescricaoRoute
   '/pacientes': typeof PacientesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/historico' | '/pacientes'
+  fullPaths: '/' | '/historico' | '/nova-prescricao' | '/pacientes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/historico' | '/pacientes'
-  id: '__root__' | '/' | '/historico' | '/pacientes'
+  to: '/' | '/historico' | '/nova-prescricao' | '/pacientes'
+  id: '__root__' | '/' | '/historico' | '/nova-prescricao' | '/pacientes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HistoricoRoute: typeof HistoricoRoute
+  NovaPrescricaoRoute: typeof NovaPrescricaoRoute
   PacientesRoute: typeof PacientesRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/pacientes'
       fullPath: '/pacientes'
       preLoaderRoute: typeof PacientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nova-prescricao': {
+      id: '/nova-prescricao'
+      path: '/nova-prescricao'
+      fullPath: '/nova-prescricao'
+      preLoaderRoute: typeof NovaPrescricaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/historico': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HistoricoRoute: HistoricoRoute,
+  NovaPrescricaoRoute: NovaPrescricaoRoute,
   PacientesRoute: PacientesRoute,
 }
 export const routeTree = rootRouteImport
