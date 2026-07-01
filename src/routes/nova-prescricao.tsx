@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   User,
   Pill,
+  Stethoscope,
   FileSignature,
   Loader2,
   CheckCircle2,
@@ -27,9 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { DocumentDialog } from "@/components/document-dialog";
 import { SendDialog } from "@/components/send-dialog";
+import { AsyncCombobox } from "@/components/async-combobox";
+import {
+  searchMedicamentos,
+  searchCid,
+  type MedResult,
+  type CidResult,
+} from "@/lib/reference";
 import { cn } from "@/lib/utils";
 import {
-  medications,
   ageFromBirth,
   initials,
   doctor,
